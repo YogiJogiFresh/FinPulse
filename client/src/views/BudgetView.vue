@@ -1,0 +1,122 @@
+<template>
+  <div class="budget-view">
+    <div class="view-toolbar">
+      <Button label="Add Category" icon="pi pi-plus" @click="openCreate" />
+    </div>
+
+    <DataTable :value="categories" stripedRows dataKey="_id" paginator :rows="15" v-if="categories.length > 0">
+      <Column header="Color" style="width: 60px">
+        <template #body="{ data }">
+          <span class="color-swatch" :style="{ backgroundColor: data.color }"></span>
+        </template>
+      </Column>
+      <Column field="name" header="Category" sortable />
+      <Column field="monthlyLimit" header="Monthly Limit" sortable>
+        <template #body="{ data }">
+          {{ formatCurrency(data.monthlyLimit) }}
+        </template>
+      </Column>
+      <Column header="Actions" style="width: 140px">
+        <template #body="{ data }">
+          <div class="action-buttons">
+            <Button icon="pi pi-pencil" severity="info" text rounded @click="openEdit(data)" />
+            <Button icon="pi pi-trash" severity="danger" text rounded @click="onDelete(data)" />
+          </div>
+        </template>
+      </Column>
+    </DataTable>
+    <div v-else class="empty-state">
+      <i class="pi pi-tags"></i>
+      <span>No budget categories yet. Add one to start tracking.</span>
+    </div>
+
+    <Dialog v-model:visible="dialogVisible" :header="editingCategory ? 'Edit Category' : 'New Category'" modal :style="{ width: '450px' }">
+      <BudgetCategoryForm :category="editingCategory" @save="onSave" @cancel="dialogVisible = false" />
+    </Dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import type { BudgetCategory } from '@/types'
+import { getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory } from '@/services/api'
+import BudgetCategoryForm from '@/components/budget/BudgetCategoryForm.vue'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
+
+const categories = ref<BudgetCategory[]>([])
+const dialogVisible = ref(false)
+const editingCategory = ref<BudgetCategory | null>(null)
+
+async function loadBudget() {
+  categories.value = await getBudgetCategories()
+}
+
+function openCreate() {
+  editingCategory.value = null
+  dialogVisible.value = true
+}
+
+function openEdit(cat: BudgetCategory) {
+  editingCategory.value = cat
+  dialogVisible.value = true
+}
+
+async function onSave(data: { name: string; monthlyLimit: number; color: string }) {
+  if (editingCategory.value) {
+    await updateBudgetCategory(editingCategory.value._id, data)
+  } else {
+    await createBudgetCategory(data)
+  }
+  dialogVisible.value = false
+  await loadBudget()
+}
+
+async function onDelete(cat: BudgetCategory) {
+  await deleteBudgetCategory(cat._id)
+  await loadBudget()
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+}
+
+onMounted(loadBudget)
+</script>
+
+<style scoped>
+.budget-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.view-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  justify-content: center;
+}
+</style>
