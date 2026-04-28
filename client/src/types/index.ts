@@ -45,7 +45,7 @@ export interface Debt {
   _id: string
   name: string
   type: 'student_loan' | 'car_loan' | 'mortgage' | 'credit_card' | 'personal_loan' | 'medical' | 'other'
-  totalDebt: number
+  currentBalance: number
   monthlyPayment: number
   interestRate: number
   notes?: string
@@ -54,7 +54,7 @@ export interface Debt {
 }
 
 export interface DebtTotal {
-  totalDebt: number
+  currentBalance: number
   totalMonthly: number
 }
 

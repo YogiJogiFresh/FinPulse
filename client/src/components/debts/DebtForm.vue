@@ -17,8 +17,8 @@
       />
     </div>
     <div class="form-field">
-      <label for="totalDebt">Total Debt</label>
-      <InputNumber id="totalDebt" v-model="form.totalDebt" mode="currency" currency="USD" class="w-full" />
+      <label for="currentBalance">Current Balance</label>
+      <InputNumber id="currentBalance" v-model="form.currentBalance" mode="currency" currency="USD" class="w-full" />
     </div>
     <div class="form-field">
       <label for="monthlyPayment">Monthly Payment</label>
@@ -52,7 +52,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  save: [data: { name: string; type: string; totalDebt: number; monthlyPayment: number; interestRate: number; notes: string }]
+  save: [data: { name: string; type: string; currentBalance: number; monthlyPayment: number; interestRate: number; notes: string }]
   cancel: []
 }>()
 
@@ -69,7 +69,7 @@ const debtTypes = [
 const form = reactive({
   name: '',
   type: 'other',
-  totalDebt: 0,
+  currentBalance: 0,
   monthlyPayment: 0,
   interestRate: 0,
   notes: ''
@@ -79,7 +79,7 @@ watchEffect(() => {
   if (props.debt) {
     form.name = props.debt.name
     form.type = props.debt.type
-    form.totalDebt = props.debt.totalDebt
+    form.currentBalance = props.debt.currentBalance
     form.monthlyPayment = props.debt.monthlyPayment
     form.interestRate = props.debt.interestRate
     form.notes = props.debt.notes || ''
@@ -90,7 +90,7 @@ function onSubmit() {
   emit('save', {
     name: form.name,
     type: form.type,
-    totalDebt: form.totalDebt,
+    currentBalance: form.currentBalance,
     monthlyPayment: form.monthlyPayment,
     interestRate: form.interestRate,
     notes: form.notes

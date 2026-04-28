@@ -26,7 +26,7 @@ export function registerDebtHandlers(): void {
   ipcMain.handle('debts:create', (_event, data: {
     name: string;
     type: string;
-    totalDebt: number;
+    currentBalance: number;
     monthlyPayment: number;
     interestRate?: number;
     notes?: string;
@@ -34,8 +34,8 @@ export function registerDebtHandlers(): void {
     const db = getDatabase();
     const id = generateId();
     db.run(
-      'INSERT INTO debts (id, name, type, total_debt, monthly_payment, interest_rate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, data.name, data.type, data.totalDebt, data.monthlyPayment, data.interestRate ?? 0, data.notes ?? null]
+      'INSERT INTO debts (id, name, type, current_balance, monthly_payment, interest_rate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, data.name, data.type, data.currentBalance, data.monthlyPayment, data.interestRate ?? 0, data.notes ?? null]
     );
     saveDatabase();
     const rows = query('SELECT * FROM debts WHERE id = ?', [id]);
@@ -69,9 +69,9 @@ export function registerDebtHandlers(): void {
   });
 
   ipcMain.handle('debts:total', () => {
-    const rows = query('SELECT COALESCE(SUM(total_debt), 0) as total_debt, COALESCE(SUM(monthly_payment), 0) as total_monthly FROM debts');
+    const rows = query('SELECT COALESCE(SUM(current_balance), 0) as current_balance, COALESCE(SUM(monthly_payment), 0) as total_monthly FROM debts');
     return {
-      totalDebt: rows[0]?.total_debt ?? 0,
+      currentBalance: rows[0]?.current_balance ?? 0,
       totalMonthly: rows[0]?.total_monthly ?? 0
     };
   });

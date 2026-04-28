@@ -6,9 +6,9 @@
         <Tag :value="formatType(data.type)" :severity="typeSeverity(data.type)" />
       </template>
     </Column>
-    <Column field="totalDebt" header="Total Debt" sortable>
+    <Column field="currentBalance" header="Current Balance" sortable>
       <template #body="{ data }">
-        <span class="text-expense">{{ formatCurrency(data.totalDebt) }}</span>
+        <span class="text-expense">{{ formatCurrency(data.currentBalance) }}</span>
       </template>
     </Column>
     <Column field="monthlyPayment" header="Monthly Payment" sortable>

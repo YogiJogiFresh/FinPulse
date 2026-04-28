@@ -26,7 +26,7 @@
         </div>
         <div class="card-content">
           <span class="card-label">Total Debt</span>
-          <span class="card-value text-expense">{{ formatCurrency(debtTotals.totalDebt) }}</span>
+          <span class="card-value text-expense">{{ formatCurrency(debtTotals.currentBalance) }}</span>
         </div>
       </div>
       <div class="summary-card">
@@ -121,9 +121,9 @@
             <Tag :value="formatDebtType(data.type)" :severity="debtSeverity(data.type)" />
           </template>
         </Column>
-        <Column field="totalDebt" header="Total Debt">
+        <Column field="currentBalance" header="Current Balance">
           <template #body="{ data }">
-            <span class="text-expense">{{ formatCurrency(data.totalDebt) }}</span>
+            <span class="text-expense">{{ formatCurrency(data.currentBalance) }}</span>
           </template>
         </Column>
         <Column field="monthlyPayment" header="Monthly Payment">
@@ -169,7 +169,7 @@ const summary = ref<DashboardSummary>({
 
 const budgetCategories = ref<BudgetCategory[]>([])
 const debts = ref<Debt[]>([])
-const debtTotals = ref<DebtTotal>({ totalDebt: 0, totalMonthly: 0 })
+const debtTotals = ref<DebtTotal>({ currentBalance: 0, totalMonthly: 0 })
 const monthlyIncome = ref(0)
 const accounts = ref<Account[]>([])
 

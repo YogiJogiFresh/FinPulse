@@ -70,7 +70,7 @@ export async function initDatabase(): Promise<Database> {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('student_loan','car_loan','mortgage','credit_card','personal_loan','medical','other')),
-      total_debt REAL NOT NULL DEFAULT 0,
+      current_balance REAL NOT NULL DEFAULT 0,
       monthly_payment REAL NOT NULL DEFAULT 0,
       interest_rate REAL NOT NULL DEFAULT 0,
       notes TEXT,
@@ -156,6 +156,13 @@ export async function initDatabase(): Promise<Database> {
     db.run("ALTER TABLE accounts ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))");
   } catch {
     // Column already exists
+  }
+
+  // Migrate: rename total_debt to current_balance in debts table
+  try {
+    db.run('ALTER TABLE debts RENAME COLUMN total_debt TO current_balance');
+  } catch {
+    // Column already renamed or doesn't exist
   }
 
   // Properties tables
