@@ -1,5 +1,5 @@
 <template>
-  <DataTable :value="transactions" stripedRows dataKey="_id" paginator :rows="15" class="transaction-table">
+  <DataTable :value="transactions" :loading="loading" stripedRows dataKey="_id" paginator :rows="15" class="transaction-table">
     <Column field="date" header="Date" sortable>
       <template #body="{ data }">
         {{ formatDate(data.date) }}
@@ -46,6 +46,7 @@ import Tag from 'primevue/tag'
 const props = defineProps<{
   transactions: Transaction[]
   accounts: Account[]
+  loading?: boolean
 }>()
 
 defineEmits<{

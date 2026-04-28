@@ -6,6 +6,7 @@
 
     <DebtList
       :debts="debts"
+      :loading="loading"
       @edit="openEdit"
       @delete="onDelete"
     />
@@ -32,9 +33,15 @@ import Dialog from 'primevue/dialog'
 const debts = ref<Debt[]>([])
 const dialogVisible = ref(false)
 const editingDebt = ref<Debt | null>(null)
+const loading = ref(true)
 
 async function loadData() {
-  debts.value = await getDebts()
+  loading.value = true
+  try {
+    debts.value = await getDebts()
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

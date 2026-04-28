@@ -1,5 +1,5 @@
 <template>
-  <DataTable :value="debts" stripedRows dataKey="_id" paginator :rows="15" class="debt-table">
+  <DataTable :value="debts" :loading="loading" stripedRows dataKey="_id" paginator :rows="15" class="debt-table">
     <Column field="name" header="Name" sortable />
     <Column field="type" header="Type" sortable>
       <template #body="{ data }">
@@ -42,6 +42,7 @@ import Tag from 'primevue/tag'
 
 defineProps<{
   debts: Debt[]
+  loading?: boolean
 }>()
 
 defineEmits<{

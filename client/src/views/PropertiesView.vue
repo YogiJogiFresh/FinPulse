@@ -49,7 +49,7 @@
           <h3><i class="pi pi-list"></i> Property Details</h3>
           <Button icon="pi pi-plus" label="Add Detail" size="small" @click="showAddDetail = true" />
         </div>
-        <DataTable :value="details" stripedRows dataKey="_id" v-if="details.length > 0" size="small">
+        <DataTable :value="details" :loading="tabLoading" stripedRows dataKey="_id" v-if="details.length > 0 || tabLoading" size="small">
           <Column field="category" header="Category" :sortable="true" style="width: 120px">
             <template #body="{ data }">
               <Tag :value="formatCategory(data.category)" :severity="detailCategorySeverity(data.category)" />
@@ -64,7 +64,7 @@
             </template>
           </Column>
         </DataTable>
-        <div v-else class="empty-section">No details yet. Add info like HVAC, roof date, water heater, etc.</div>
+        <div v-if="!tabLoading && details.length === 0" class="empty-section">No details yet. Add info like HVAC, roof date, water heater, etc.</div>
       </div>
 
       <!-- Property Expenses -->
@@ -73,7 +73,7 @@
           <h3><i class="pi pi-money-bill"></i> Expenses</h3>
           <Button icon="pi pi-plus" label="Add Expense" size="small" @click="showAddExpense = true" />
         </div>
-        <DataTable :value="expenses" stripedRows dataKey="_id" v-if="expenses.length > 0" size="small"
+        <DataTable :value="expenses" :loading="tabLoading" stripedRows dataKey="_id" v-if="expenses.length > 0 || tabLoading" size="small"
           :sortField="'date'" :sortOrder="-1">
           <Column field="date" header="Date" :sortable="true" style="width: 120px" />
           <Column field="description" header="Description" :sortable="true" />
@@ -98,7 +98,7 @@
         <div v-if="expenses.length > 0" class="expense-total">
           Total: <strong>{{ formatCurrency(totalExpenses) }}</strong>
         </div>
-        <div v-else class="empty-section">No expenses recorded yet.</div>
+        <div v-if="!tabLoading && expenses.length === 0" class="empty-section">No expenses recorded yet.</div>
       </div>
 
       <!-- Property Contractors -->
@@ -107,7 +107,7 @@
           <h3><i class="pi pi-users"></i> Contractors</h3>
           <Button icon="pi pi-plus" label="Add Contractor" size="small" @click="showAddContractor = true" />
         </div>
-        <DataTable :value="contractors" stripedRows dataKey="_id" v-if="contractors.length > 0" size="small">
+        <DataTable :value="contractors" :loading="tabLoading" stripedRows dataKey="_id" v-if="contractors.length > 0 || tabLoading" size="small">
           <Column field="name" header="Name" :sortable="true" />
           <Column field="specialty" header="Specialty" :sortable="true" style="width: 130px">
             <template #body="{ data }">
@@ -124,7 +124,7 @@
             </template>
           </Column>
         </DataTable>
-        <div v-else class="empty-section">No contractors added yet.</div>
+        <div v-if="!tabLoading && contractors.length === 0" class="empty-section">No contractors added yet.</div>
       </div>
     </div>
 
@@ -378,15 +378,22 @@ async function loadProperties() {
   }
 }
 
+const tabLoading = ref(false)
+
 async function loadPropertyData(propId: string) {
-  const [d, e, c] = await Promise.all([
-    getPropertyDetails(propId),
-    getPropertyExpenses(propId),
-    getPropertyContractors(propId)
-  ])
-  details.value = d
-  expenses.value = e
-  contractors.value = c
+  tabLoading.value = true
+  try {
+    const [d, e, c] = await Promise.all([
+      getPropertyDetails(propId),
+      getPropertyExpenses(propId),
+      getPropertyContractors(propId)
+    ])
+    details.value = d
+    expenses.value = e
+    contractors.value = c
+  } finally {
+    tabLoading.value = false
+  }
 }
 
 function selectProperty(id: string) {

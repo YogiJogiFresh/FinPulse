@@ -155,6 +155,7 @@ const taxDirty = ref(false)
 const taxSaved = ref(false)
 const confirmingClear = ref(false)
 const confirmingPage = ref('')
+const loading = ref(true)
 
 const clearOptions = [
   { key: 'accounts', label: 'Accounts', description: 'Delete all accounts' },
@@ -207,6 +208,7 @@ async function doExport() {
 }
 
 onMounted(async () => {
+  loading.value = true
   try {
     const settings = await getSettings()
     federalTaxRate.value = parseFloat(settings.federal_tax_rate || '22')
@@ -215,6 +217,8 @@ onMounted(async () => {
     originalState = stateTaxRate.value
   } catch {
     // defaults
+  } finally {
+    loading.value = false
   }
 })
 </script>

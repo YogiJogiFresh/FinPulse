@@ -4,7 +4,7 @@
       <Button label="Add Account" icon="pi pi-plus" @click="openCreate" />
     </div>
 
-    <AccountList :accounts="accounts" @edit="openEdit" @delete="onDelete" />
+    <AccountList :accounts="accounts" :loading="loading" @edit="openEdit" @delete="onDelete" />
 
     <Dialog v-model:visible="dialogVisible" :header="editingAccount ? 'Edit Account' : 'New Account'" modal :style="{ width: '450px' }">
       <AccountForm :account="editingAccount" @save="onSave" @cancel="dialogVisible = false" />
@@ -24,9 +24,15 @@ import Dialog from 'primevue/dialog'
 const accounts = ref<Account[]>([])
 const dialogVisible = ref(false)
 const editingAccount = ref<Account | null>(null)
+const loading = ref(true)
 
 async function loadAccounts() {
-  accounts.value = await getAccounts()
+  loading.value = true
+  try {
+    accounts.value = await getAccounts()
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

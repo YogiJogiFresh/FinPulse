@@ -7,6 +7,7 @@
     <TransactionList
       :transactions="transactions"
       :accounts="accounts"
+      :loading="loading"
       @edit="openEdit"
       @delete="onDelete"
     />
@@ -35,11 +36,17 @@ const transactions = ref<Transaction[]>([])
 const accounts = ref<Account[]>([])
 const dialogVisible = ref(false)
 const editingTransaction = ref<Transaction | null>(null)
+const loading = ref(true)
 
 async function loadData() {
-  const [txns, accts] = await Promise.all([getTransactions(), getAccounts()])
-  transactions.value = txns
-  accounts.value = accts
+  loading.value = true
+  try {
+    const [txns, accts] = await Promise.all([getTransactions(), getAccounts()])
+    transactions.value = txns
+    accounts.value = accts
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

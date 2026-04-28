@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-view">
     <!-- Summary Cards -->
-    <div class="summary-cards">
+    <div class="summary-cards" v-if="!loading">
       <div class="summary-card">
         <div class="card-icon" style="background-color: #38bdf8">
           <i class="pi pi-dollar"></i>
@@ -41,9 +41,18 @@
         </div>
       </div>
     </div>
+    <div class="summary-cards" v-else>
+      <div class="summary-card" v-for="i in 4" :key="i">
+        <Skeleton width="40px" height="40px" borderRadius="10px" />
+        <div class="card-content">
+          <Skeleton width="100px" height="14px" />
+          <Skeleton width="120px" height="24px" />
+        </div>
+      </div>
+    </div>
 
     <!-- Charts Row -->
-    <div class="charts-row">
+    <div class="charts-row" v-if="!loading">
       <div class="chart-card">
         <h3>Monthly Budget Breakdown</h3>
         <BudgetPieChart :categories="allBudgetItems" :monthlyIncome="monthlyIncome" />
@@ -80,9 +89,19 @@
         </div>
       </div>
     </div>
+    <div class="charts-row" v-if="loading">
+      <div class="chart-card">
+        <Skeleton width="180px" height="20px" class="mb-3" />
+        <Skeleton width="100%" height="200px" borderRadius="8px" />
+      </div>
+      <div class="chart-card">
+        <Skeleton width="140px" height="20px" class="mb-3" />
+        <Skeleton width="100%" height="200px" borderRadius="8px" />
+      </div>
+    </div>
 
     <!-- Account Type Breakdown -->
-    <div class="charts-row">
+    <div class="charts-row" v-if="!loading">
       <div class="chart-card">
         <h3>Account Type Breakdown</h3>
         <AccountTypePieChart :accounts="accounts" />
@@ -114,7 +133,7 @@
     <!-- Debt Overview -->
     <div class="recent-section">
       <h3>Debt Overview</h3>
-      <DataTable :value="debts" stripedRows dataKey="_id" :rows="10" v-if="debts.length > 0">
+      <DataTable :value="debts" :loading="loading" stripedRows dataKey="_id" :rows="10" v-if="debts.length > 0 || loading">
         <Column field="name" header="Name" />
         <Column field="type" header="Type">
           <template #body="{ data }">
@@ -137,7 +156,7 @@
           </template>
         </Column>
       </DataTable>
-      <div v-else class="empty-debts">
+      <div v-if="!loading && debts.length === 0" class="empty-debts">
         <i class="pi pi-check-circle"></i>
         <span>No debts tracked. Add debts from the Debts page.</span>
       </div>
@@ -159,6 +178,7 @@ import HistoricalNetWorth from '@/components/HistoricalNetWorth.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
+import Skeleton from 'primevue/skeleton'
 
 const summary = ref<DashboardSummary>({
   totalBalance: 0,
@@ -172,8 +192,9 @@ const debts = ref<Debt[]>([])
 const debtTotals = ref<DebtTotal>({ currentBalance: 0, totalMonthly: 0 })
 const monthlyIncome = ref(0)
 const accounts = ref<Account[]>([])
+const loading = ref(true)
 
-const totalBudgeted = computed(() =>
+const totalBudgeted= computed(() =>
   allBudgetItems.value.reduce((sum, c) => sum + c.monthlyLimit, 0)
 )
 
@@ -239,6 +260,7 @@ function debtSeverity(type: string): 'success' | 'danger' | 'info' | 'warn' | 's
 }
 
 onMounted(async () => {
+  loading.value = true
   try {
     const [summaryData, categories, debtList, debtTotal, incomeTotal, accountList] = await Promise.all([
       getDashboardSummary(),
@@ -257,6 +279,8 @@ onMounted(async () => {
     accounts.value = accountList
   } catch {
     // API may not be available yet
+  } finally {
+    loading.value = false
   }
 })
 </script>

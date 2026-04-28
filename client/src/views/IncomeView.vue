@@ -4,13 +4,26 @@
       <Button label="Add Income Source" icon="pi pi-plus" @click="openCreate" />
     </div>
 
+    <!-- Loading Skeleton -->
+    <div v-if="loading" class="income-card" v-for="i in 2" :key="'skel-' + i">
+      <div class="income-header">
+        <div class="income-info">
+          <Skeleton width="180px" height="22px" class="mb-2" />
+          <div class="income-amounts">
+            <Skeleton width="140px" height="18px" />
+            <Skeleton width="180px" height="18px" />
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Income Sources List -->
-    <div v-if="sources.length === 0" class="empty-state">
+    <div v-if="!loading && sources.length === 0" class="empty-state">
       <i class="pi pi-info-circle"></i>
       <span>No income sources yet. Add your salary to get started.</span>
     </div>
 
-    <div v-for="source in sources" :key="source._id" class="income-card">
+    <div v-if="!loading" v-for="source in sources" :key="source._id" class="income-card">
       <div class="income-header">
         <div class="income-info">
           <h3>{{ source.name }}</h3>
@@ -109,8 +122,10 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
+import Skeleton from 'primevue/skeleton'
 
 const sources = ref<IncomeSource[]>([])
+const loading = ref(true)
 const dialogVisible = ref(false)
 const editingSource = ref<IncomeSource | null>(null)
 const federalTaxRate = ref(22)
@@ -207,7 +222,12 @@ function formatCurrency(amount: number): string {
 }
 
 onMounted(async () => {
-  await Promise.all([loadData(), loadSettings()])
+  loading.value = true
+  try {
+    await Promise.all([loadData(), loadSettings()])
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 

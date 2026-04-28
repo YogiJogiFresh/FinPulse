@@ -4,7 +4,7 @@
       <Button label="Add Category" icon="pi pi-plus" @click="openCreate" />
     </div>
 
-    <DataTable :value="categories" stripedRows dataKey="_id" paginator :rows="15" v-if="categories.length > 0">
+    <DataTable :value="categories" :loading="loading" stripedRows dataKey="_id" paginator :rows="15" v-if="categories.length > 0 || loading">
       <Column header="Color" style="width: 60px">
         <template #body="{ data }">
           <span class="color-swatch" :style="{ backgroundColor: data.color }"></span>
@@ -25,7 +25,7 @@
         </template>
       </Column>
     </DataTable>
-    <div v-else class="empty-state">
+    <div v-if="!loading && categories.length === 0" class="empty-state">
       <i class="pi pi-tags"></i>
       <span>No budget categories yet. Add one to start tracking.</span>
     </div>
@@ -49,9 +49,15 @@ import Dialog from 'primevue/dialog'
 const categories = ref<BudgetCategory[]>([])
 const dialogVisible = ref(false)
 const editingCategory = ref<BudgetCategory | null>(null)
+const loading = ref(true)
 
 async function loadBudget() {
-  categories.value = await getBudgetCategories()
+  loading.value = true
+  try {
+    categories.value = await getBudgetCategories()
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {
