@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Transaction, Account } from '@/types'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -72,9 +73,12 @@ function typeSeverity(type: string): 'success' | 'danger' | 'info' {
   return 'info'
 }
 
+const accountMap = computed(() =>
+  Object.fromEntries(props.accounts.map(a => [a._id, a.name]))
+)
+
 function accountName(accountId: string): string {
-  const account = props.accounts.find(a => a._id === accountId)
-  return account?.name || accountId
+  return accountMap.value[accountId] || accountId
 }
 </script>
 

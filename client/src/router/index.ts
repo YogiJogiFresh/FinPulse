@@ -1,61 +1,53 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import DashboardView from '@/views/DashboardView.vue'
-import AccountsView from '@/views/AccountsView.vue'
-import IncomeView from '@/views/IncomeView.vue'
-import DebtsView from '@/views/DebtsView.vue'
-import BudgetView from '@/views/BudgetView.vue'
-import ProjectionView from '@/views/ProjectionView.vue'
-import PropertiesView from '@/views/PropertiesView.vue'
-import SettingsView from '@/views/SettingsView.vue'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Dashboard',
-    component: DashboardView,
+    component: () => import('@/views/DashboardView.vue'),
     meta: { title: 'Dashboard' }
   },
   {
     path: '/accounts',
     name: 'Accounts',
-    component: AccountsView,
+    component: () => import('@/views/AccountsView.vue'),
     meta: { title: 'Accounts' }
   },
   {
     path: '/income',
     name: 'Income',
-    component: IncomeView,
+    component: () => import('@/views/IncomeView.vue'),
     meta: { title: 'Income' }
   },
   {
     path: '/debts',
     name: 'Debts',
-    component: DebtsView,
+    component: () => import('@/views/DebtsView.vue'),
     meta: { title: 'Debts' }
   },
   {
     path: '/budget',
     name: 'Budget',
-    component: BudgetView,
+    component: () => import('@/views/BudgetView.vue'),
     meta: { title: 'Budget' }
   },
   {
     path: '/projection',
     name: 'Projection',
-    component: ProjectionView,
+    component: () => import('@/views/ProjectionView.vue'),
     meta: { title: 'Projection' }
   },
   {
     path: '/properties',
     name: 'Properties',
-    component: PropertiesView,
+    component: () => import('@/views/PropertiesView.vue'),
     meta: { title: 'Properties' }
   },
   {
     path: '/settings',
     name: 'Settings',
-    component: SettingsView,
+    component: () => import('@/views/SettingsView.vue'),
     meta: { title: 'Settings' }
   }
 ]

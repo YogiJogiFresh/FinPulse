@@ -219,6 +219,15 @@ export async function initDatabase(): Promise<Database> {
     )
   `);
 
+  // Indexes for frequently queried columns
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_date_type ON transactions(date, type)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_date_category ON transactions(date, category)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_income_distributions_income_id ON income_distributions(income_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_property_details_property_id ON property_details(property_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_property_expenses_property_id ON property_expenses(property_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_property_contractors_property_id ON property_contractors(property_id)');
+
   // Insert default settings if not present
   const defaults: [string, string][] = [
     ['theme', 'dark'],

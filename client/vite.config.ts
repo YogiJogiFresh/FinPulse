@@ -12,5 +12,16 @@ export default defineConfig({
   },
   server: {
     port: 5173
+  },
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          primevue: ['primevue'],
+          charts: ['chart.js', 'vue-chartjs']
+        }
+      }
+    }
   }
 })

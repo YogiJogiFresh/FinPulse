@@ -91,6 +91,9 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Periodic save every 30s to protect against crash data loss
+setInterval(() => saveDatabase(), 30000);
+
 app.on('before-quit', () => {
   saveDatabase();
 });

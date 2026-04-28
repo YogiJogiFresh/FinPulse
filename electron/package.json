@@ -27,7 +27,7 @@
     "files": [
       "dist/**/*",
       "package.json",
-      "node_modules/sql.js/**/*"
+      "node_modules/sql.js/dist/sql-wasm.js"
     ],
     "extraResources": [
       {
