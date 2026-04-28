@@ -1,6 +1,6 @@
 {
   "name": "finpulse",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Personal finance dashboard and budget tracker — standalone desktop app",
   "private": true,
   "scripts": {
