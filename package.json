@@ -10,6 +10,7 @@
     "build": "npm run build:client",
     "electron:dev": "cd electron && npm run dev",
     "electron:build": "npm run build && cd electron && npm run build",
+    "electron:release": "pwsh -ExecutionPolicy Bypass -File scripts/release.ps1",
     "start": "cd electron && npm start"
   }
 }
