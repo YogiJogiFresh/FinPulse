@@ -197,12 +197,25 @@ const valueMap = computed(() => {
   return map
 })
 
-function getValue(account: string, date: string): number {
-  return valueMap.value[account]?.[date] ?? 0
+function getValue(account: string, date: string): number | null {
+  const val = valueMap.value[account]?.[date]
+  return val !== undefined ? val : null
 }
 
 function getTotal(date: string): number {
-  return accounts.value.reduce((sum, acct) => sum + getValue(acct, date), 0)
+  // Carry-forward: use last known value for each account when a date is missing
+  return accounts.value.reduce((sum, acct) => {
+    const val = getValue(acct, date)
+    if (val !== null) return sum + val
+    // Find the most recent known value before this date
+    const datesArr = dates.value
+    const idx = datesArr.indexOf(date)
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = getValue(acct, datesArr[i])
+      if (prev !== null) return sum + prev
+    }
+    return sum
+  }, 0)
 }
 
 const startNetWorth = computed(() =>
@@ -233,7 +246,8 @@ const chartData = computed(() => {
       backgroundColor: 'transparent',
       borderWidth: 2,
       pointRadius: props.compact ? 2 : 3,
-      tension: 0.3
+      tension: 0.3,
+      spanGaps: true
     })
   })
   datasets.push({
