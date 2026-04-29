@@ -122,15 +122,22 @@ export function registerPropertyHandlers(): void {
     const recurringEndDate = data.recurringEndDate || '';
 
     // Generate dates for recurring entries
-    const dates: string[] = [data.date];
-    if (recurring && recurringEndDate) {
+    const dates: string[] = [data.date || ''];
+    if (recurring && data.date) {
       const [sm, sd, sy] = data.date.split('/').map(Number);
-      const [em, ed, ey] = recurringEndDate.split('/').map(Number);
-      const endDate = new Date(ey, em - 1, ed);
+      let endDate: Date;
+      if (recurringEndDate) {
+        const [em, ed, ey] = recurringEndDate.split('/').map(Number);
+        endDate = new Date(ey, em - 1, ed);
+      } else {
+        endDate = new Date(sy + 5, sm - 1, sd);
+      }
       let cur = new Date(sy, sm - 1, sd);
       while (true) {
         if (recurring === 'monthly') {
           cur = new Date(cur.getFullYear(), cur.getMonth() + 1, cur.getDate());
+        } else if (recurring === 'quarterly') {
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 3, cur.getDate());
         } else {
           cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
         }

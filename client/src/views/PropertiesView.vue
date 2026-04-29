@@ -88,9 +88,10 @@
             </template>
           </Column>
           <Column field="notes" header="Notes" />
-          <Column field="recurring" header="Recurring" style="width: 100px">
+          <Column field="recurring" header="Recurring" style="width: 110px">
             <template #body="{ data }">
               <Tag v-if="data.recurring === 'monthly'" value="Monthly" severity="info" />
+              <Tag v-else-if="data.recurring === 'quarterly'" value="Quarterly" severity="success" />
               <Tag v-else-if="data.recurring === 'annual'" value="Annual" severity="warn" />
               <span v-else class="text-muted">—</span>
             </template>
@@ -194,12 +195,12 @@
     </Dialog>
 
     <!-- Add Expense Dialog -->
-    <Dialog v-model:visible="showAddExpense" header="Add Expense" modal :style="{ width: '450px' }">
+    <Dialog v-model:visible="showAddExpense" :header="editingExpenseId ? 'Edit Expense' : 'Add Expense'" modal :style="{ width: '450px' }">
       <div class="dialog-form">
         <div class="field-row">
           <div class="field">
             <label>Date</label>
-            <InputText v-model="expenseForm.date" placeholder="MM/DD/YYYY" class="w-full" />
+            <DatePicker v-model="expenseForm.date" dateFormat="mm/dd/yy" placeholder="MM/DD/YYYY" showIcon :showOnFocus="false" class="w-full" />
           </div>
           <div class="field">
             <label>Category</label>
@@ -218,20 +219,20 @@
           <label>Notes</label>
           <Textarea v-model="expenseForm.notes" rows="2" class="w-full" />
         </div>
-        <div class="field-row" v-if="!editingExpenseId">
+        <div class="field-row">
           <div class="field">
             <label>Recurring</label>
             <Select v-model="expenseForm.recurring" :options="recurringOptions" optionLabel="label" optionValue="value" class="w-full" />
           </div>
           <div class="field" v-if="expenseForm.recurring">
-            <label>End Date</label>
-            <DatePicker v-model="expenseForm.recurringEndDate" dateFormat="mm/dd/yy" placeholder="MM/DD/YYYY" showIcon :showOnFocus="false" class="w-full" />
+            <label>End Date <small class="text-muted">(optional, defaults to 5 years)</small></label>
+            <DatePicker v-model="expenseForm.recurringEndDate" dateFormat="mm/dd/yy" placeholder="Indefinite" showIcon :showOnFocus="false" class="w-full" />
           </div>
         </div>
       </div>
       <template #footer>
         <Button label="Cancel" severity="secondary" text @click="showAddExpense = false" />
-        <Button :label="editingExpenseId ? 'Save' : 'Add'" icon="pi pi-check" @click="saveExpense" :disabled="!expenseForm.description || !expenseForm.date" />
+        <Button :label="editingExpenseId ? 'Save' : 'Add'" icon="pi pi-check" @click="saveExpense" :disabled="!expenseForm.description" />
       </template>
     </Dialog>
 
@@ -280,6 +281,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useToast } from 'primevue/usetoast'
 import type { Property, PropertyDetail, PropertyExpense, PropertyContractor } from '@/types'
 import {
   getProperties, createProperty, updateProperty, deleteProperty,
@@ -298,6 +300,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import DatePicker from 'primevue/datepicker'
 
+const toast = useToast()
 const properties = ref<Property[]>([])
 const selectedPropertyId = ref<string | null>(null)
 const details = ref<PropertyDetail[]>([])
@@ -323,7 +326,7 @@ const editingContractorId = ref<string | null>(null)
 // Form models
 const propForm = ref({ name: '', designation: 'primary_residence', address: '', purchaseDate: '', purchasePrice: 0, notes: '' })
 const detailForm = ref({ category: 'other', label: '', value: '' })
-const expenseForm = ref({ date: '', description: '', amount: 0, category: 'other', notes: '', recurring: '', recurringEndDate: null as Date | null })
+const expenseForm = ref({ date: null as Date | null, description: '', amount: 0, category: 'other', notes: '', recurring: '', recurringEndDate: null as Date | null })
 const contractorForm = ref({ name: '', specialty: 'other', phone: '', email: '', notes: '' })
 
 // Options
@@ -350,6 +353,7 @@ const expenseCategoryOptions = [
 const recurringOptions = [
   { label: 'None', value: '' },
   { label: 'Monthly', value: 'monthly' },
+  { label: 'Quarterly', value: 'quarterly' },
   { label: 'Annual', value: 'annual' }
 ]
 const specialtyOptions = [
@@ -494,38 +498,80 @@ async function doDeleteDetail(id: string) {
 }
 
 // ── Expense CRUD ──
+function formatDateStr(d: Date | null): string {
+  if (!d) return ''
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
+}
+
+function parseDateStr(s: string): Date | null {
+  if (!s) return null
+  const [mm, dd, yyyy] = s.split('/').map(Number)
+  if (!mm || !dd || !yyyy) return null
+  return new Date(yyyy, mm - 1, dd)
+}
+
 function resetExpenseForm() {
-  expenseForm.value = { date: '', description: '', amount: 0, category: 'other', notes: '', recurring: '', recurringEndDate: null }
+  expenseForm.value = { date: null, description: '', amount: 0, category: 'other', notes: '', recurring: '', recurringEndDate: null }
   editingExpenseId.value = null
 }
 
 function editExpense(e: PropertyExpense) {
-  expenseForm.value = { date: e.date, description: e.description, amount: e.amount, category: e.category, notes: e.notes, recurring: (e as any).recurring || '', recurringEndDate: null }
+  expenseForm.value = {
+    date: parseDateStr(e.date),
+    description: e.description,
+    amount: e.amount,
+    category: e.category,
+    notes: e.notes,
+    recurring: (e as any).recurring || '',
+    recurringEndDate: parseDateStr((e as any).recurringEndDate || '')
+  }
   editingExpenseId.value = e._id
   showAddExpense.value = true
 }
 
 async function saveExpense() {
-  const endDateStr = expenseForm.value.recurringEndDate
-    ? `${String(expenseForm.value.recurringEndDate.getMonth() + 1).padStart(2, '0')}/${String(expenseForm.value.recurringEndDate.getDate()).padStart(2, '0')}/${expenseForm.value.recurringEndDate.getFullYear()}`
-    : ''
+  const dateStr = formatDateStr(expenseForm.value.date)
+  const recurring = expenseForm.value.recurring
+  let endDateStr = formatDateStr(expenseForm.value.recurringEndDate)
+
+  // If recurring but no end date, default to 5 years from start (or today)
+  if (recurring && !endDateStr) {
+    const base = expenseForm.value.date || new Date()
+    const defaultEnd = new Date(base.getFullYear() + 5, base.getMonth(), base.getDate())
+    endDateStr = formatDateStr(defaultEnd)
+  }
+
+  // Validate: end date must be after start date if both specified
+  if (recurring && dateStr && endDateStr) {
+    const startTs = (expenseForm.value.date || new Date()).getTime()
+    const endTs = expenseForm.value.recurringEndDate
+      ? expenseForm.value.recurringEndDate.getTime()
+      : new Date((expenseForm.value.date || new Date()).getFullYear() + 5, (expenseForm.value.date || new Date()).getMonth(), (expenseForm.value.date || new Date()).getDate()).getTime()
+    if (endTs <= startTs) {
+      toast.add({ severity: 'error', summary: 'Invalid Dates', detail: 'End date must be after the start date', life: 3000 })
+      return
+    }
+  }
+
   if (editingExpenseId.value) {
     await updatePropertyExpense(editingExpenseId.value, {
-      date: expenseForm.value.date,
-      description: expenseForm.value.description,
-      amount: expenseForm.value.amount,
-      category: expenseForm.value.category,
-      notes: expenseForm.value.notes
-    } as any)
-  } else {
-    await createPropertyExpense({
-      propertyId: selectedPropertyId.value!,
-      date: expenseForm.value.date,
+      date: dateStr,
       description: expenseForm.value.description,
       amount: expenseForm.value.amount,
       category: expenseForm.value.category,
       notes: expenseForm.value.notes,
-      recurring: expenseForm.value.recurring,
+      recurring,
+      recurringEndDate: endDateStr
+    } as any)
+  } else {
+    await createPropertyExpense({
+      propertyId: selectedPropertyId.value!,
+      date: dateStr,
+      description: expenseForm.value.description,
+      amount: expenseForm.value.amount,
+      category: expenseForm.value.category,
+      notes: expenseForm.value.notes,
+      recurring,
       recurringEndDate: endDateStr
     } as any)
   }
