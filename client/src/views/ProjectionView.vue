@@ -157,12 +157,13 @@
                           separator=","
                           class="tag-chips-input"
                           placeholder="Add tag..."
+                          @keydown.enter="onTagEnter"
                         />
                         <button class="tag-save-btn" title="Save tags" @click="saveEditTag">
                           <i class="pi pi-check"></i>
                         </button>
-                        <button class="tag-cancel-btn" title="Cancel" @click="editingTagCell = null">
-                          <i class="pi pi-times"></i>
+                        <button class="tag-clear-btn" title="Clear tags" @click="clearEntryTags">
+                          <i class="pi pi-times"></i> Clear
                         </button>
                       </div>
                       <span v-else class="editable-cell tag-chips-display" @click="startEditTag(item.row.account_name, item.row.date)">
@@ -182,12 +183,6 @@
                         </button>
                       </template>
                       <template v-else>
-                        <button
-                          v-if="item.row.tag"
-                          class="clear-tag-btn"
-                          title="Clear tag"
-                          @click="onClearTag(item.row.account_name)"
-                        >×</button>
                         <button
                           class="delete-entry-btn"
                           title="Delete entry"
@@ -680,6 +675,26 @@ async function saveEditTag() {
   editingTagCell.value = null
 }
 
+async function clearEntryTags() {
+  if (!editingTagCell.value) return
+  const { account, date } = editingTagCell.value
+  const value = historyRef.value?.getValue(account, date) ?? 0
+  await updateHistoryEntry({ account_name: account, date, value, tag: '' })
+  const rows = historyRef.value?.historyRows ?? []
+  const row = rows.find((r: AccountHistoryEntry) => r.account_name === account && r.date === date)
+  if (row) row.tag = ''
+  editingTagCell.value = null
+}
+
+function onTagEnter(e: KeyboardEvent) {
+  const input = (e.target as HTMLInputElement)
+  if (input && input.value === '') {
+    e.preventDefault()
+    e.stopPropagation()
+    saveEditTag()
+  }
+}
+
 function isEditingValue(account: string, date: string): boolean {
   return editingCell.value?.account === account && editingCell.value?.date === date
 }
@@ -1095,17 +1110,13 @@ async function confirmAddEntry() {
   gap: 4px;
 }
 
-.tag-save-btn,
-.tag-cancel-btn {
+.tag-save-btn {
   background: none;
   border: none;
   cursor: pointer;
   padding: 2px 4px;
   font-size: 0.75rem;
   transition: color 0.15s;
-}
-
-.tag-save-btn {
   color: #22c55e;
 }
 
@@ -1113,12 +1124,21 @@ async function confirmAddEntry() {
   color: #4ade80;
 }
 
-.tag-cancel-btn {
-  color: #64748b;
+.tag-clear-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.7rem;
+  color: #f87171;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.tag-cancel-btn:hover {
-  color: #94a3b8;
+.tag-clear-btn:hover {
+  color: #ef4444;
 }
 
 .history-data-table .total-row td {
