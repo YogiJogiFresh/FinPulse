@@ -36,6 +36,11 @@
               <label>Tags</label>
               <MultiSelect v-model="filterTags" :options="allTags" placeholder="All Tags" :maxSelectedLabels="2" class="filter-multiselect" />
             </div>
+            <div class="filter-group filter-group-btn">
+              <button class="clear-filters-btn" @click="clearFilters">
+                <i class="pi pi-filter-slash"></i> Clear Filters
+              </button>
+            </div>
           </div>
 
           <div class="account-filter-row">
@@ -126,13 +131,13 @@ const allAccounts = computed(() => {
 })
 
 const allTags = computed(() => {
-  // Show tags only from rows matching current date and account filters (excluding tag filter itself)
-  const fromStr = filterDateFrom.value ? dateToFilterStr(filterDateFrom.value) : ''
-  const toStr = filterDateTo.value ? dateToFilterStr(filterDateTo.value) : ''
+  const fromTs = filterDateFrom.value ? filterDateFrom.value.getTime() : 0
+  const toTs = filterDateTo.value ? filterDateTo.value.getTime() : Infinity
   const relevant = historyRows.value.filter(row => {
     if (filterAccounts.value.length > 0 && !filterAccounts.value.includes(row.account_name)) return false
-    if (fromStr && row.date < fromStr) return false
-    if (toStr && row.date > toStr) return false
+    const rowTs = parseMMDDYYYY(row.date)
+    if (fromTs && rowTs < fromTs) return false
+    if (toTs !== Infinity && rowTs > toTs) return false
     return true
   })
   const s = new Set(relevant.map(r => r.tag || '(Untagged)'))
@@ -152,20 +157,27 @@ watch(allTags, (tags) => {
   }
 })
 
-function dateToFilterStr(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${mm}-${dd}-${d.getFullYear()}`
+function parseMMDDYYYY(s: string): number {
+  const [mm, dd, yyyy] = s.split('-').map(Number)
+  return new Date(yyyy, mm - 1, dd).getTime()
+}
+
+function clearFilters() {
+  filterDateFrom.value = null
+  filterDateTo.value = null
+  filterAccounts.value = [...allAccounts.value]
+  filterTags.value = []
 }
 
 const filteredRows = computed(() => {
   if (props.compact) return historyRows.value
-  const fromStr = filterDateFrom.value ? dateToFilterStr(filterDateFrom.value) : ''
-  const toStr = filterDateTo.value ? dateToFilterStr(filterDateTo.value) : ''
+  const fromTs = filterDateFrom.value ? filterDateFrom.value.getTime() : 0
+  const toTs = filterDateTo.value ? filterDateTo.value.getTime() : Infinity
   return historyRows.value.filter(row => {
     if (filterAccounts.value.length > 0 && !filterAccounts.value.includes(row.account_name)) return false
-    if (fromStr && row.date < fromStr) return false
-    if (toStr && row.date > toStr) return false
+    const rowTs = parseMMDDYYYY(row.date)
+    if (fromTs && rowTs < fromTs) return false
+    if (toTs !== Infinity && rowTs > toTs) return false
     if (filterTags.value.length > 0) {
       const tagMatch = row.tag ? filterTags.value.includes(row.tag) : filterTags.value.includes('(Untagged)')
       if (!tagMatch) return false
@@ -453,6 +465,30 @@ onMounted(reload)
 .filter-multiselect {
   min-width: 160px;
   font-size: 0.85rem;
+}
+
+.filter-group-btn {
+  display: flex;
+  align-items: flex-end;
+}
+
+.clear-filters-btn {
+  background: #334155;
+  color: #94a3b8;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clear-filters-btn:hover {
+  background: #475569;
+  color: #e2e8f0;
 }
 
 .account-filter-row {

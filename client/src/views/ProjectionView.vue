@@ -164,17 +164,27 @@
                       </span>
                     </td>
                     <td class="actions-cell">
-                      <button
-                        v-if="item.row.tag"
-                        class="clear-tag-btn"
-                        title="Clear tag"
-                        @click="onClearTag(item.row.account_name)"
-                      >×</button>
-                      <button
-                        class="delete-entry-btn"
-                        title="Delete entry"
-                        @click="onDeleteEntry(item.row.account_name, item.row.date)"
-                      ><i class="pi pi-trash"></i></button>
+                      <template v-if="pendingDelete?.account === item.row.account_name && pendingDelete?.date === item.row.date">
+                        <button class="confirm-delete-btn" title="Confirm delete" @click="confirmDelete">
+                          <i class="pi pi-check"></i>
+                        </button>
+                        <button class="cancel-delete-btn" title="Cancel" @click="cancelDelete">
+                          <i class="pi pi-times"></i>
+                        </button>
+                      </template>
+                      <template v-else>
+                        <button
+                          v-if="item.row.tag"
+                          class="clear-tag-btn"
+                          title="Clear tag"
+                          @click="onClearTag(item.row.account_name)"
+                        >×</button>
+                        <button
+                          class="delete-entry-btn"
+                          title="Delete entry"
+                          @click="onDeleteEntry(item.row.account_name, item.row.date)"
+                        ><i class="pi pi-trash"></i></button>
+                      </template>
                     </td>
                   </tr>
                 </template>
@@ -687,10 +697,23 @@ async function onClearTag(account: string) {
 }
 
 // Delete entry
-async function onDeleteEntry(accountName: string, date: string) {
-  await deleteHistoryEntry({ account_name: accountName, date })
+const pendingDelete = ref<{ account: string; date: string } | null>(null)
+
+function onDeleteEntry(accountName: string, date: string) {
+  pendingDelete.value = { account: accountName, date }
+}
+
+async function confirmDelete() {
+  if (!pendingDelete.value) return
+  const { account, date } = pendingDelete.value
+  pendingDelete.value = null
+  await deleteHistoryEntry({ account_name: account, date })
   await historyRef.value?.reload()
-  toast.add({ severity: 'warn', summary: 'Entry Deleted', detail: `Removed ${date} from ${accountName}`, life: 2000 })
+  toast.add({ severity: 'warn', summary: 'Entry Deleted', detail: `Removed ${date} from ${account}`, life: 2000 })
+}
+
+function cancelDelete() {
+  pendingDelete.value = null
 }
 
 // Add entry
@@ -1072,6 +1095,11 @@ async function confirmAddEntry() {
 
 .entry-row td {
   padding-left: 20px !important;
+  transition: background-color 0.15s;
+}
+
+.entry-row:hover td {
+  background-color: #1e293b !important;
 }
 
 .collapse-icon {
@@ -1101,6 +1129,32 @@ async function confirmAddEntry() {
 
 .delete-entry-btn:hover {
   color: #f87171;
+}
+
+.confirm-delete-btn,
+.cancel-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  transition: color 0.15s;
+}
+
+.confirm-delete-btn {
+  color: #f87171;
+}
+
+.confirm-delete-btn:hover {
+  color: #ef4444;
+}
+
+.cancel-delete-btn {
+  color: #64748b;
+}
+
+.cancel-delete-btn:hover {
+  color: #94a3b8;
 }
 
 .history-table-header {
