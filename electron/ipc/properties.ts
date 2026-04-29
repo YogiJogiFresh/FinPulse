@@ -112,23 +112,53 @@ export function registerPropertyHandlers(): void {
 
   ipcMain.handle('propertyExpenses:create', (_event, data: {
     propertyId: string; date: string; description: string;
-    amount: number; category?: string; notes?: string
+    amount: number; category?: string; notes?: string;
+    recurring?: string; recurringEndDate?: string
   }) => {
     const db = getDatabase();
-    const id = generateId();
-    db.run(
-      'INSERT INTO property_expenses (id, property_id, date, description, amount, category, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, data.propertyId, data.date, data.description, data.amount, data.category || 'other', data.notes || '']
-    );
+    const category = data.category || 'other';
+    const notes = data.notes || '';
+    const recurring = data.recurring || '';
+    const recurringEndDate = data.recurringEndDate || '';
+
+    // Generate dates for recurring entries
+    const dates: string[] = [data.date];
+    if (recurring && recurringEndDate) {
+      const [sm, sd, sy] = data.date.split('/').map(Number);
+      const [em, ed, ey] = recurringEndDate.split('/').map(Number);
+      const endDate = new Date(ey, em - 1, ed);
+      let cur = new Date(sy, sm - 1, sd);
+      while (true) {
+        if (recurring === 'monthly') {
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 1, cur.getDate());
+        } else {
+          cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
+        }
+        if (cur > endDate) break;
+        const mm = String(cur.getMonth() + 1).padStart(2, '0');
+        const dd = String(cur.getDate()).padStart(2, '0');
+        dates.push(`${mm}/${dd}/${cur.getFullYear()}`);
+      }
+    }
+
+    let firstId = '';
+    for (const dt of dates) {
+      const id = generateId();
+      if (!firstId) firstId = id;
+      db.run(
+        'INSERT INTO property_expenses (id, property_id, date, description, amount, category, notes, recurring, recurring_end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, data.propertyId, dt, data.description, data.amount, category, notes, recurring, recurringEndDate]
+      );
+    }
     saveDatabase();
-    return formatRow(query('SELECT * FROM property_expenses WHERE id = ?', [id])[0]);
+    return formatRow(query('SELECT * FROM property_expenses WHERE id = ?', [firstId])[0]);
   });
 
   ipcMain.handle('propertyExpenses:update', (_event, data: any) => {
     const db = getDatabase();
     const fields: string[] = [];
     const values: any[] = [];
-    for (const [camel, snake] of Object.entries({ date: 'date', description: 'description', amount: 'amount', category: 'category', notes: 'notes' })) {
+    for (const [camel, snake] of Object.entries({ date: 'date', description: 'description', amount: 'amount', category: 'category', notes: 'notes', recurring: 'recurring', recurringEndDate: 'recurring_end_date' })) {
       if (data[camel] !== undefined) {
         fields.push(`${snake} = ?`);
         values.push(data[camel]);

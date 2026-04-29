@@ -151,16 +151,20 @@
                       </span>
                     </td>
                     <td class="tag-cell">
-                      <input
+                      <Chips
                         v-if="isEditingTag(item.row.account_name, item.row.date)"
-                        type="text"
                         v-model="editingTagValue"
-                        class="edit-input tag-input"
+                        separator=","
+                        class="tag-chips-input"
+                        placeholder="Add tag..."
                         @blur="saveEditTag"
-                        @keyup.enter="saveEditTag"
+                        @keyup.enter.stop
                       />
-                      <span v-else class="editable-cell" @click="startEditTag(item.row.account_name, item.row.date)">
-                        {{ item.row.tag || '—' }}
+                      <span v-else class="editable-cell tag-chips-display" @click="startEditTag(item.row.account_name, item.row.date)">
+                        <template v-if="item.row.tag">
+                          <span v-for="t in item.row.tag.split(',').map((s: string) => s.trim()).filter(Boolean)" :key="t" class="tag-chip">{{ t }}</span>
+                        </template>
+                        <span v-else class="tag-empty">—</span>
                       </span>
                     </td>
                     <td class="actions-cell">
@@ -279,6 +283,7 @@ import { getAccounts, updateHistoryEntry, clearAccountTags, addHistoryEntry, del
 import { useToast } from 'primevue/usetoast'
 import HistoricalNetWorth from '@/components/HistoricalNetWorth.vue'
 import Dialog from 'primevue/dialog'
+import Chips from 'primevue/chips'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
@@ -299,7 +304,7 @@ const historyRef = ref<InstanceType<typeof HistoricalNetWorth> | null>(null)
 const editingCell = ref<{ account: string; date: string } | null>(null)
 const editingValue = ref('')
 const editingTagCell = ref<{ account: string; date: string } | null>(null)
-const editingTagValue = ref('')
+const editingTagValue = ref<string[]>([])
 
 // Sorting state — applies within each account group
 const sortField = ref<'date' | 'value' | 'tag'>('date')
@@ -654,14 +659,15 @@ async function saveEditValue() {
 
 function startEditTag(account: string, date: string) {
   editingTagCell.value = { account, date }
-  editingTagValue.value = getHistoryTag(account, date)
+  const raw = getHistoryTag(account, date)
+  editingTagValue.value = raw ? raw.split(',').map(t => t.trim()).filter(Boolean) : []
 }
 
 async function saveEditTag() {
   if (!editingTagCell.value) return
   const { account, date } = editingTagCell.value
   const value = historyRef.value?.getValue(account, date) ?? 0
-  const newTag = editingTagValue.value.trim()
+  const newTag = editingTagValue.value.map(t => t.trim()).filter(Boolean).join(',')
   await updateHistoryEntry({ account_name: account, date, value, tag: newTag })
   const rows = historyRef.value?.historyRows ?? []
   const row = rows.find((r: AccountHistoryEntry) => r.account_name === account && r.date === date)
@@ -1023,13 +1029,59 @@ async function confirmAddEntry() {
   outline: none;
 }
 
-.tag-input {
-  text-align: left;
-  min-width: 60px;
-}
-
 .tag-cell {
   min-width: 80px;
+}
+
+.tag-chip {
+  display: inline-block;
+  background: #1e3a5f;
+  color: #60a5fa;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin: 1px 3px;
+  white-space: nowrap;
+}
+
+.tag-chips-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+
+.tag-empty {
+  color: #64748b;
+}
+
+.tag-chips-input {
+  min-width: 120px;
+}
+
+.tag-chips-input :deep(.p-chips-input-token input) {
+  background: transparent;
+  color: #e2e8f0;
+  border: none;
+  outline: none;
+  font-size: 0.8rem;
+}
+
+.tag-chips-input :deep(.p-chips-token) {
+  background: #1e3a5f;
+  color: #60a5fa;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.tag-chips-input :deep(.p-inputtext) {
+  background: #0f172a;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-height: 28px;
 }
 
 .history-data-table .total-row td {

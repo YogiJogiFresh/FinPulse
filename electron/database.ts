@@ -219,6 +219,14 @@ export async function initDatabase(): Promise<Database> {
     )
   `);
 
+  // Migrate: add recurring columns to property_expenses
+  try {
+    db.run("ALTER TABLE property_expenses ADD COLUMN recurring TEXT NOT NULL DEFAULT ''");
+  } catch { /* Column already exists */ }
+  try {
+    db.run("ALTER TABLE property_expenses ADD COLUMN recurring_end_date TEXT NOT NULL DEFAULT ''");
+  } catch { /* Column already exists */ }
+
   // Indexes for frequently queried columns
   db.run('CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_transactions_date_type ON transactions(date, type)');

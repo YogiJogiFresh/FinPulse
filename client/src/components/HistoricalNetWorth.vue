@@ -140,7 +140,11 @@ const allTags = computed(() => {
     if (toTs !== Infinity && rowTs > toTs) return false
     return true
   })
-  const s = new Set(relevant.map(r => r.tag || '(Untagged)'))
+  const s = new Set<string>()
+  for (const r of relevant) {
+    if (!r.tag) { s.add('(Untagged)'); continue }
+    for (const t of r.tag.split(',').map(t => t.trim()).filter(Boolean)) s.add(t)
+  }
   return [...s].sort()
 })
 
@@ -179,8 +183,12 @@ const filteredRows = computed(() => {
     if (fromTs && rowTs < fromTs) return false
     if (toTs !== Infinity && rowTs > toTs) return false
     if (filterTags.value.length > 0) {
-      const tagMatch = row.tag ? filterTags.value.includes(row.tag) : filterTags.value.includes('(Untagged)')
-      if (!tagMatch) return false
+      if (!row.tag) {
+        if (!filterTags.value.includes('(Untagged)')) return false
+      } else {
+        const rowTags = row.tag.split(',').map(t => t.trim()).filter(Boolean)
+        if (!rowTags.some(t => filterTags.value.includes(t))) return false
+      }
     }
     return true
   })
