@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
 import { initDatabase, saveDatabase } from './database';
@@ -39,19 +39,39 @@ function setupAutoUpdater(): void {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-available', (info) => {
-    dialog.showMessageBox(mainWindow!, {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update Available',
       message: `A new version (${info.version}) of FinPulse is available. Would you like to download it?`,
       buttons: ['Download', 'Later']
     }).then((result) => {
       if (result.response === 0) {
-        autoUpdater.downloadUpdate();
+        autoUpdater.downloadUpdate().catch((err) => {
+          console.error('Download failed:', err);
+          if (mainWindow) {
+            dialog.showMessageBox(mainWindow, {
+              type: 'error',
+              title: 'Download Failed',
+              message: `Failed to download update: ${err.message}`,
+              buttons: ['OK']
+            });
+          }
+        });
       }
     });
   });
 
+  autoUpdater.on('download-progress', (progress) => {
+    if (mainWindow) {
+      mainWindow.setProgressBar(progress.percent / 100);
+    }
+  });
+
   autoUpdater.on('update-downloaded', () => {
+    if (mainWindow) {
+      mainWindow.setProgressBar(-1);
+    }
     dialog.showMessageBox(mainWindow!, {
       type: 'info',
       title: 'Update Ready',
@@ -65,16 +85,23 @@ function setupAutoUpdater(): void {
   });
 
   autoUpdater.on('error', (err) => {
-    // Silently ignore update errors — don't disrupt the user
-    console.log('Auto-updater error:', err.message);
+    console.error('Auto-updater error:', err.message);
+    if (mainWindow) {
+      mainWindow.setProgressBar(-1);
+    }
   });
 
-  autoUpdater.checkForUpdates();
+  autoUpdater.checkForUpdates().catch((err) => {
+    console.error('Update check failed:', err.message);
+  });
 }
 
 app.whenReady().then(async () => {
   await initDatabase();
   registerAllHandlers();
+
+  ipcMain.handle('app:getVersion', () => app.getVersion());
+
   createWindow();
   setupAutoUpdater();
 

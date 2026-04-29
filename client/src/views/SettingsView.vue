@@ -1,5 +1,10 @@
 <template>
   <div class="settings-view">
+    <!-- App Version -->
+    <div class="version-badge">
+      <i class="pi pi-box"></i> FinPulse v{{ appVersion }}
+    </div>
+
     <!-- Data Management -->
     <div class="settings-card">
       <h3><i class="pi pi-database"></i> Data Management</h3>
@@ -142,7 +147,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory } from '@/services/api'
+import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion } from '@/services/api'
 import Button from 'primevue/button'
 import ExcelImport from '@/components/ExcelImport.vue'
 import { useToast } from 'primevue/usetoast'
@@ -156,6 +161,7 @@ const taxSaved = ref(false)
 const confirmingClear = ref(false)
 const confirmingPage = ref('')
 const loading = ref(true)
+const appVersion = ref('...')
 
 const clearOptions = [
   { key: 'accounts', label: 'Accounts', description: 'Delete all accounts' },
@@ -210,11 +216,12 @@ async function doExport() {
 onMounted(async () => {
   loading.value = true
   try {
-    const settings = await getSettings()
+    const [settings, version] = await Promise.all([getSettings(), getAppVersion()])
     federalTaxRate.value = parseFloat(settings.federal_tax_rate || '22')
     stateTaxRate.value = parseFloat(settings.state_tax_rate || '5')
     originalFederal = federalTaxRate.value
     originalState = stateTaxRate.value
+    appVersion.value = version
   } catch {
     // defaults
   } finally {
@@ -228,6 +235,19 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  background-color: #1e293b;
+  border-radius: 8px;
+  width: fit-content;
 }
 
 .settings-view h2 {

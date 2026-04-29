@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('api', {
+  // App
+  getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+
   // Accounts
   getAccounts: () => ipcRenderer.invoke('accounts:getAll'),
   createAccount: (data: any) => ipcRenderer.invoke('accounts:create', data),

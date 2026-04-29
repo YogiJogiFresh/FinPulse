@@ -194,6 +194,11 @@ export function exportHistory(): Promise<boolean> {
   return window.api.exportHistory()
 }
 
+// App
+export function getAppVersion(): Promise<string> {
+  return window.api.getAppVersion()
+}
+
 // Properties
 import type { Property, PropertyDetail, PropertyExpense, PropertyContractor } from '@/types'
 

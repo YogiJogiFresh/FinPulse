@@ -83,6 +83,7 @@ interface Window {
     createPropertyContractor(data: any): Promise<import('./types').PropertyContractor>
     updatePropertyContractor(data: any): Promise<import('./types').PropertyContractor>
     deletePropertyContractor(id: string): Promise<void>
+    getAppVersion(): Promise<string>
     platform: string
   }
 }
