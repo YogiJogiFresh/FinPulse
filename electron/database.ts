@@ -40,21 +40,6 @@ export async function initDatabase(): Promise<Database> {
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-      date TEXT NOT NULL,
-      description TEXT NOT NULL,
-      amount REAL NOT NULL,
-      category TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('income','expense','transfer')),
-      notes TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `);
-
-  db.run(`
     CREATE TABLE IF NOT EXISTS budget_categories (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
@@ -228,9 +213,6 @@ export async function initDatabase(): Promise<Database> {
   } catch { /* Column already exists */ }
 
   // Indexes for frequently queried columns
-  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id)');
-  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_date_type ON transactions(date, type)');
-  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_date_category ON transactions(date, category)');
   db.run('CREATE INDEX IF NOT EXISTS idx_income_distributions_income_id ON income_distributions(income_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_property_details_property_id ON property_details(property_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_property_expenses_property_id ON property_expenses(property_id)');

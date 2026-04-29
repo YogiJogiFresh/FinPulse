@@ -1,19 +1,4 @@
-import type { Account, Transaction, BudgetCategory, BudgetProgress, DashboardSummary, Debt, DebtTotal, IncomeSource, IncomeDistribution } from '@/types'
-
-export interface TransactionFilters {
-  accountId?: string
-  category?: string
-  type?: string
-  startDate?: string
-  endDate?: string
-  limit?: number
-}
-
-export interface CategorySpending {
-  category: string
-  total: number
-  count: number
-}
+import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution } from '@/types'
 
 // Accounts
 export function getAccounts(): Promise<Account[]> {
@@ -30,31 +15,6 @@ export function updateAccount(id: string, account: Partial<Account>): Promise<Ac
 
 export function deleteAccount(id: string): Promise<void> {
   return window.api.deleteAccount(id)
-}
-
-// Transactions
-export function getTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
-  return window.api.getTransactions(filters)
-}
-
-export function createTransaction(transaction: Omit<Transaction, '_id' | 'createdAt'>): Promise<Transaction> {
-  return window.api.createTransaction(transaction)
-}
-
-export function updateTransaction(id: string, transaction: Partial<Transaction>): Promise<Transaction> {
-  return window.api.updateTransaction({ id, ...transaction })
-}
-
-export function deleteTransaction(id: string): Promise<void> {
-  return window.api.deleteTransaction(id)
-}
-
-export function getTransactionSummary(): Promise<CategorySpending[]> {
-  return window.api.getTransactionSummary()
-}
-
-export function getDashboardSummary(): Promise<DashboardSummary> {
-  return window.api.getDashboardSummary()
 }
 
 // Budget

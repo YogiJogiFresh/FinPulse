@@ -8,7 +8,7 @@
         </div>
         <div class="card-content">
           <span class="card-label">Net Worth</span>
-          <span class="card-value">{{ formatCurrency(summary.totalBalance) }}</span>
+          <span class="card-value">{{ formatCurrency(totalBalance) }}</span>
         </div>
       </div>
       <div class="summary-card">
@@ -121,7 +121,7 @@
               <span class="budget-dot" style="background-color: transparent"></span>
               <span class="budget-total-text">Total</span>
             </div>
-            <span class="budget-line-amount budget-total-amount">{{ formatCurrency(summary.totalBalance) }}</span>
+            <span class="budget-line-amount budget-total-amount">{{ formatCurrency(totalBalance) }}</span>
           </div>
           <div v-if="accounts.length === 0" class="empty-chart-msg">
             <span>Add accounts to see breakdown.</span>
@@ -169,9 +169,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { Debt, DebtTotal, BudgetCategory, DashboardSummary } from '@/types'
-import { getDebts, getDebtTotal, getDashboardSummary, getBudgetCategories, getMonthlyIncomeTotal, getAccounts } from '@/services/api'
-import type { Account } from '@/types'
+import type { Debt, DebtTotal, BudgetCategory, Account } from '@/types'
+import { getDebts, getDebtTotal, getBudgetCategories, getMonthlyIncomeTotal, getAccounts } from '@/services/api'
 import BudgetPieChart from '@/components/charts/BudgetPieChart.vue'
 import AccountTypePieChart from '@/components/charts/AccountTypePieChart.vue'
 import HistoricalNetWorth from '@/components/HistoricalNetWorth.vue'
@@ -180,12 +179,7 @@ import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 import Skeleton from 'primevue/skeleton'
 
-const summary = ref<DashboardSummary>({
-  totalBalance: 0,
-  monthlyIncome: 0,
-  monthlyExpenses: 0,
-  netSavings: 0
-})
+const totalBalance = computed(() => accounts.value.reduce((sum, a) => sum + a.balance, 0))
 
 const budgetCategories = ref<BudgetCategory[]>([])
 const debts = ref<Debt[]>([])
@@ -262,8 +256,7 @@ function debtSeverity(type: string): 'success' | 'danger' | 'info' | 'warn' | 's
 onMounted(async () => {
   loading.value = true
   try {
-    const [summaryData, categories, debtList, debtTotal, incomeTotal, accountList] = await Promise.all([
-      getDashboardSummary(),
+    const [categories, debtList, debtTotal, incomeTotal, accountList] = await Promise.all([
       getBudgetCategories(),
       getDebts(),
       getDebtTotal(),
@@ -271,7 +264,6 @@ onMounted(async () => {
       getAccounts()
     ])
 
-    summary.value = summaryData
     budgetCategories.value = categories
     debts.value = debtList
     debtTotals.value = debtTotal

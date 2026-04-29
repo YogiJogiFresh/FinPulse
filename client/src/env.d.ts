@@ -6,33 +6,12 @@ declare module '*.vue' {
   export default component
 }
 
-interface TransactionFilters {
-  accountId?: string
-  category?: string
-  type?: string
-  startDate?: string
-  endDate?: string
-  limit?: number
-}
-
-interface CategorySpending {
-  category: string
-  total: number
-  count: number
-}
-
 interface Window {
   api: {
     getAccounts(): Promise<import('./types').Account[]>
     createAccount(data: any): Promise<import('./types').Account>
     updateAccount(data: any): Promise<import('./types').Account>
     deleteAccount(id: string): Promise<void>
-    getTransactions(filters?: TransactionFilters): Promise<import('./types').Transaction[]>
-    createTransaction(data: any): Promise<import('./types').Transaction>
-    updateTransaction(data: any): Promise<import('./types').Transaction>
-    deleteTransaction(id: string): Promise<void>
-    getTransactionSummary(): Promise<CategorySpending[]>
-    getDashboardSummary(): Promise<import('./types').DashboardSummary>
     getDebts(): Promise<import('./types').Debt[]>
     createDebt(data: any): Promise<import('./types').Debt>
     updateDebt(data: any): Promise<import('./types').Debt>

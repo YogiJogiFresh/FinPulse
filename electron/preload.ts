@@ -10,14 +10,6 @@ contextBridge.exposeInMainWorld('api', {
   updateAccount: (data: any) => ipcRenderer.invoke('accounts:update', data),
   deleteAccount: (id: string) => ipcRenderer.invoke('accounts:delete', { id }),
 
-  // Transactions (legacy)
-  getTransactions: (filters?: any) => ipcRenderer.invoke('transactions:getAll', filters),
-  createTransaction: (data: any) => ipcRenderer.invoke('transactions:create', data),
-  updateTransaction: (data: any) => ipcRenderer.invoke('transactions:update', data),
-  deleteTransaction: (id: string) => ipcRenderer.invoke('transactions:delete', { id }),
-  getTransactionSummary: () => ipcRenderer.invoke('transactions:summary'),
-  getDashboardSummary: () => ipcRenderer.invoke('transactions:dashboard'),
-
   // Debts
   getDebts: () => ipcRenderer.invoke('debts:getAll'),
   createDebt: (data: any) => ipcRenderer.invoke('debts:create', data),

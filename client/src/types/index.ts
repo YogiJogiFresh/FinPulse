@@ -8,18 +8,6 @@ export interface Account {
   updatedAt: string
 }
 
-export interface Transaction {
-  _id: string
-  accountId: string
-  date: string
-  description: string
-  amount: number
-  category: string
-  type: 'income' | 'expense' | 'transfer'
-  notes?: string
-  createdAt: string
-}
-
 export interface BudgetCategory {
   _id: string
   name: string
@@ -32,13 +20,6 @@ export interface BudgetProgress extends BudgetCategory {
   spent: number
   remaining: number
   percentage: number
-}
-
-export interface DashboardSummary {
-  totalBalance: number
-  monthlyIncome: number
-  monthlyExpenses: number
-  netSavings: number
 }
 
 export interface Debt {

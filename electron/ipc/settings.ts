@@ -32,7 +32,7 @@ export function registerSettingsHandlers(): void {
 
   ipcMain.handle('settings:clearAllData', () => {
     const db = getDatabase();
-    const tables = ['income_distributions', 'income_sources', 'debts', 'transactions', 'accounts', 'budget_categories', 'account_history'];
+    const tables = ['income_distributions', 'income_sources', 'debts', 'accounts', 'budget_categories', 'account_history'];
     for (const table of tables) {
       db.run(`DELETE FROM ${table}`);
     }
@@ -48,7 +48,6 @@ export function registerSettingsHandlers(): void {
     const db = getDatabase();
     switch (page) {
       case 'accounts':
-        db.run('DELETE FROM transactions');
         db.run('DELETE FROM accounts');
         break;
       case 'income':
