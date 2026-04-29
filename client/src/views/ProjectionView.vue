@@ -151,15 +151,20 @@
                       </span>
                     </td>
                     <td class="tag-cell">
-                      <Chips
-                        v-if="isEditingTag(item.row.account_name, item.row.date)"
-                        v-model="editingTagValue"
-                        separator=","
-                        class="tag-chips-input"
-                        placeholder="Add tag..."
-                        @blur="saveEditTag"
-                        @keyup.enter.stop
-                      />
+                      <div v-if="isEditingTag(item.row.account_name, item.row.date)" class="tag-edit-row">
+                        <Chips
+                          v-model="editingTagValue"
+                          separator=","
+                          class="tag-chips-input"
+                          placeholder="Add tag..."
+                        />
+                        <button class="tag-save-btn" title="Save tags" @click="saveEditTag">
+                          <i class="pi pi-check"></i>
+                        </button>
+                        <button class="tag-cancel-btn" title="Cancel" @click="editingTagCell = null">
+                          <i class="pi pi-times"></i>
+                        </button>
+                      </div>
                       <span v-else class="editable-cell tag-chips-display" @click="startEditTag(item.row.account_name, item.row.date)">
                         <template v-if="item.row.tag">
                           <span v-for="t in item.row.tag.split(',').map((s: string) => s.trim()).filter(Boolean)" :key="t" class="tag-chip">{{ t }}</span>
@@ -1082,6 +1087,38 @@ async function confirmAddEntry() {
   border-radius: 6px;
   padding: 4px 8px;
   min-height: 28px;
+}
+
+.tag-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-save-btn,
+.tag-cancel-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  transition: color 0.15s;
+}
+
+.tag-save-btn {
+  color: #22c55e;
+}
+
+.tag-save-btn:hover {
+  color: #4ade80;
+}
+
+.tag-cancel-btn {
+  color: #64748b;
+}
+
+.tag-cancel-btn:hover {
+  color: #94a3b8;
 }
 
 .history-data-table .total-row td {
