@@ -98,7 +98,6 @@ export function registerAccountHandlers(): void {
 
   ipcMain.handle('accounts:delete', (_event, data: { id: string }) => {
     const db = getDatabase();
-    db.run('DELETE FROM transactions WHERE account_id = ?', [data.id]);
     db.run('DELETE FROM accounts WHERE id = ?', [data.id]);
     saveDatabase();
   });
