@@ -182,7 +182,7 @@ export function registerTransactionHandlers(): void {
           const exists = query('SELECT id FROM budget_categories WHERE name = ?', [catName]);
           if (exists.length === 0) {
             db.run(
-              'INSERT INTO budget_categories (id, name, budget_limit, color) VALUES (?, ?, ?, ?)',
+              'INSERT INTO budget_categories (id, name, monthly_limit, color) VALUES (?, ?, ?, ?)',
               [generateId(), catName, 0, '#64748b']
             );
           }
