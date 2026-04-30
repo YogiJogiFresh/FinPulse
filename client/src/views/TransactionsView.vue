@@ -52,7 +52,8 @@
       class="transactions-table"
     >
       <Column selectionMode="multiple" headerStyle="width: 3rem" />
-      <Column field="date" header="Date" sortable style="width: 12%">
+      <Column field="bank" header="Bank Name" sortable style="width: 12%" />
+      <Column field="date" header="Date" sortable style="width: 10%">
         <template #body="{ data }">
           {{ formatDate(data.date) }}
         </template>
@@ -67,7 +68,7 @@
           {{ data.customData?.[colName] || '' }}
         </template>
       </Column>
-      <Column field="category" header="Category" sortable style="width: 18%">
+      <Column field="category" header="Category" sortable style="width: 16%">
         <template #body="{ data }">
           <Select
             :modelValue="data.category"
@@ -80,15 +81,14 @@
           />
         </template>
       </Column>
-      <Column field="amount" header="Amount" sortable style="width: 12%">
+      <Column field="amount" header="Amount" sortable style="width: 10%">
         <template #body="{ data }">
           <span :class="data.amount > 0 ? 'amount-debit' : 'amount-credit'">
             {{ formatCurrency(data.amount) }}
           </span>
         </template>
       </Column>
-      <Column field="accountLabel" header="Account" sortable style="width: 14%" />
-      <Column header="Actions" style="width: 7%">
+      <Column header="Actions" style="width: 6%">
         <template #body="{ data }">
           <Button icon="pi pi-trash" severity="danger" text rounded size="small" @click="deleteSingle(data.id)" />
         </template>
@@ -105,6 +105,7 @@
     <div v-if="totalCount > pageSize" class="pagination-bar">
       <span class="pagination-info">Showing {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalCount) }} of {{ totalCount }}</span>
       <div class="pagination-controls">
+        <Select v-model="pageSize" :options="pageSizeOptions" optionLabel="label" optionValue="value" class="page-size-select" @change="onPageSizeChange" />
         <Button icon="pi pi-angle-left" text :disabled="currentPage <= 1" @click="prevPage" />
         <span class="page-number">Page {{ currentPage }} of {{ totalPages }}</span>
         <Button icon="pi pi-angle-right" text :disabled="currentPage >= totalPages" @click="nextPage" />
@@ -173,7 +174,12 @@ const selectedTransactions = ref<Transaction[]>([])
 const loading = ref(false)
 const totalCount = ref(0)
 const currentPage = ref(1)
-const pageSize = 20
+const pageSize = ref(20)
+const pageSizeOptions = [
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: '100', value: 100 }
+]
 
 const searchText = ref('')
 const filterCategory = ref('')
@@ -197,7 +203,7 @@ const manualAmount = ref<number | null>(null)
 const manualCategory = ref('')
 const manualAccountLabel = ref('')
 
-const totalPages = computed(() => Math.ceil(totalCount.value / pageSize))
+const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value))
 
 const customColumnNames = computed(() => {
   const keys = new Set<string>()
@@ -208,6 +214,14 @@ const customColumnNames = computed(() => {
       }
     }
   }
+  // Exclude columns already shown as dedicated table columns
+  keys.delete('Category')
+  keys.delete('Date')
+  keys.delete('Description')
+  keys.delete('Amount')
+  keys.delete('Debit')
+  keys.delete('Credit')
+  keys.delete('Post Date')
   return Array.from(keys)
 })
 
@@ -273,7 +287,7 @@ function setQuickDate(days: number) {
 }
 
 function buildFilters() {
-  const filters: any = { limit: pageSize, offset: (currentPage.value - 1) * pageSize }
+  const filters: any = { limit: pageSize.value, offset: (currentPage.value - 1) * pageSize.value }
   if (searchText.value) filters.search = searchText.value
   if (filterCategory.value === '__uncategorized') {
     filters.category = ''
@@ -364,10 +378,16 @@ function nextPage() {
   }
 }
 
+function onPageSizeChange() {
+  currentPage.value = 1
+  loadTransactions()
+}
+
 function onImported() {
   showImportDialog.value = false
   loadTransactions()
   loadBanks()
+  loadCategories()
 }
 
 function openManualAdd() {
@@ -405,8 +425,12 @@ async function loadBanks() {
   bankList.value = await getTransactionBanks()
 }
 
-onMounted(async () => {
+async function loadCategories() {
   budgetCategories.value = await getBudgetCategories()
+}
+
+onMounted(async () => {
+  await loadCategories()
   await loadBanks()
   await loadTransactions()
 })
@@ -544,6 +568,10 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.page-size-select {
+  width: 5rem;
 }
 
 .page-number {
