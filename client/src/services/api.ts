@@ -252,10 +252,6 @@ export function bulkCategorizeTransactions(ids: string[], category: string): Pro
   return window.api.bulkCategorizeTransactions(ids, category)
 }
 
-export function applyTransactionRules(): Promise<{ categorized: number }> {
-  return window.api.applyTransactionRules()
-}
-
 export function getTransactionBanks(): Promise<Array<{ bank: string; accountLabel: string }>> {
   return window.api.getTransactionBanks()
 }
@@ -283,6 +279,10 @@ export function deleteCategoryRule(id: string): Promise<void> {
 
 export function autoGenerateCategoryRules(): Promise<{ created: number }> {
   return window.api.autoGenerateCategoryRules()
+}
+
+export function applyTransactionRules(): Promise<{ updated: number }> {
+  return window.api.applyTransactionRules()
 }
 
 // Bank Configs

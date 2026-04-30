@@ -71,7 +71,7 @@ interface Window {
     updateTransaction(id: string, data: Partial<{ description: string; category: string; notes: string; amount: number; date: string }>): Promise<void>
     deleteTransaction(id: string): Promise<void>
     bulkCategorizeTransactions(ids: string[], category: string): Promise<void>
-    applyTransactionRules(): Promise<{ categorized: number }>
+    applyTransactionRules(): Promise<{ updated: number }>
     getTransactionBanks(): Promise<Array<{ bank: string; accountLabel: string }>>
     getTransactionMonthlySummary(year: number, month: number): Promise<import('./types').MonthlyCategorySummary[]>
     // Category Rules

@@ -313,23 +313,23 @@ export function registerTransactionHandlers(): void {
   // ── Apply category rules to uncategorized transactions ──
   ipcMain.handle('transactions:applyRules', () => {
     const rules = query('SELECT * FROM category_rules ORDER BY priority DESC');
-    const uncategorized = query("SELECT id, description FROM transactions WHERE category = '' OR category IS NULL");
+    const allTransactions = query("SELECT id, description FROM transactions");
 
     const db = getDatabase();
-    let categorized = 0;
+    let updated = 0;
 
-    for (const txn of uncategorized) {
+    for (const txn of allTransactions) {
       for (const rule of rules) {
         if (txn.description.toLowerCase().includes(rule.pattern.toLowerCase())) {
           db.run('UPDATE transactions SET category = ? WHERE id = ?', [rule.category, txn.id]);
-          categorized++;
+          updated++;
           break;
         }
       }
     }
 
     saveDatabase();
-    return { categorized };
+    return { updated };
   });
 
   // ── Get unique banks/accounts ──

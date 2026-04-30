@@ -56,6 +56,7 @@
       <div class="rules-footer">
         <div class="auto-generate-group">
           <Button label="Auto-Generate from History" icon="pi pi-bolt" severity="secondary" @click="autoGenerate" :loading="generating" v-tooltip.top="'Scans your categorized transactions, finds recurring merchants (2+ occurrences), and creates rules from their description patterns automatically.'" />
+          <Button label="Apply Rules to All" icon="pi pi-sync" severity="info" @click="applyRulesToAll" :loading="applying" v-tooltip.top="'Re-apply all rules to every transaction, overriding existing categories where a rule matches.'" />
         </div>
         <Button label="Close" @click="$emit('update:visible', false)" />
       </div>
@@ -72,7 +73,7 @@ import InputNumber from 'primevue/inputnumber'
 import Select from 'primevue/select'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
-import { getCategoryRules, createCategoryRule, deleteCategoryRule, autoGenerateCategoryRules } from '@/services/api'
+import { getCategoryRules, createCategoryRule, deleteCategoryRule, autoGenerateCategoryRules, applyTransactionRules } from '@/services/api'
 import type { BudgetCategory, CategoryRule } from '@/types'
 
 const props = defineProps<{
@@ -87,6 +88,7 @@ defineEmits<{
 const rules = ref<CategoryRule[]>([])
 const loading = ref(false)
 const generating = ref(false)
+const applying = ref(false)
 const newPattern = ref('')
 const newCategory = ref('')
 const newPriority = ref(0)
@@ -133,6 +135,15 @@ async function autoGenerate() {
     await loadRules()
   } finally {
     generating.value = false
+  }
+}
+
+async function applyRulesToAll() {
+  applying.value = true
+  try {
+    await applyTransactionRules()
+  } finally {
+    applying.value = false
   }
 }
 </script>
