@@ -4,7 +4,7 @@
     @update:visible="$emit('update:visible', $event)"
     header="Category Rules"
     :modal="true"
-    :style="{ width: '700px', maxHeight: '80vh' }"
+    :style="{ width: '90vw', maxWidth: '50rem', maxHeight: '80vh' }"
     :closable="true"
     :contentStyle="{ overflow: 'hidden' }"
   >
@@ -35,13 +35,13 @@
           <span class="rule-pattern">{{ data.pattern }}</span>
         </template>
       </Column>
-      <Column field="category" header="Category" sortable style="width: 140px">
+      <Column field="category" header="Category" sortable class="category-col">
         <template #body="{ data }">
           <span class="rule-category">{{ data.category }}</span>
         </template>
       </Column>
-      <Column field="priority" header="Pri" sortable style="width: 60px" />
-      <Column header="" style="width: 50px">
+      <Column field="priority" header="Priority" sortable class="priority-col" />
+      <Column header="" class="actions-col">
         <template #body="{ data }">
           <Button icon="pi pi-trash" severity="danger" text rounded size="small" @click="removeRule(data.id)" />
         </template>
@@ -169,23 +169,36 @@ async function autoGenerate() {
 }
 
 .pattern-input {
-  flex: 1;
-  min-width: 150px;
+  flex: 2;
+  min-width: 0;
 }
 
 .category-select {
-  width: 140px;
+  flex: 1;
+  min-width: 0;
 }
 
 .priority-input {
-  width: 80px;
+  flex: 0 0 auto;
+  max-width: 5rem;
 }
 
 .rules-table {
   border-radius: 6px;
   overflow: hidden;
   width: 100%;
-  table-layout: fixed;
+}
+
+:deep(.category-col) {
+  width: 25%;
+}
+
+:deep(.priority-col) {
+  width: 12%;
+}
+
+:deep(.actions-col) {
+  width: 10%;
 }
 
 .rule-pattern {
