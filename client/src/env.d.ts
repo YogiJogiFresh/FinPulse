@@ -62,6 +62,23 @@ interface Window {
     createPropertyContractor(data: any): Promise<import('./types').PropertyContractor>
     updatePropertyContractor(data: any): Promise<import('./types').PropertyContractor>
     deletePropertyContractor(id: string): Promise<void>
+    // Transactions
+    parseTransactionCSV(csvContent: string): Promise<{ bank: string; transactions: Array<{ date: string; postDate: string; description: string; amount: number }>; errors: string[] }>
+    importTransactions(data: { transactions: Array<{ date: string; postDate?: string; description: string; amount: number; category?: string }>; bank: string; accountLabel: string }): Promise<import('./types').TransactionImportResult>
+    getTransactions(filters?: import('./types').TransactionFilters): Promise<import('./types').Transaction[]>
+    getTransactionCount(filters?: import('./types').TransactionFilters): Promise<number>
+    updateTransaction(id: string, data: Partial<{ description: string; category: string; notes: string; amount: number; date: string }>): Promise<void>
+    deleteTransaction(id: string): Promise<void>
+    bulkCategorizeTransactions(ids: string[], category: string): Promise<void>
+    applyTransactionRules(): Promise<{ categorized: number }>
+    getTransactionBanks(): Promise<Array<{ bank: string; accountLabel: string }>>
+    getTransactionMonthlySummary(year: number, month: number): Promise<import('./types').MonthlyCategorySummary[]>
+    // Category Rules
+    getCategoryRules(): Promise<import('./types').CategoryRule[]>
+    createCategoryRule(data: { pattern: string; category: string; priority?: number }): Promise<{ id: string }>
+    updateCategoryRule(id: string, data: Partial<{ pattern: string; category: string; priority: number }>): Promise<void>
+    deleteCategoryRule(id: string): Promise<void>
+    autoGenerateCategoryRules(): Promise<{ created: number }>
     getAppVersion(): Promise<string>
     platform: string
   }

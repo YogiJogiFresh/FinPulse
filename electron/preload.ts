@@ -71,6 +71,25 @@ contextBridge.exposeInMainWorld('api', {
   updatePropertyContractor: (data: any) => ipcRenderer.invoke('propertyContractors:update', data),
   deletePropertyContractor: (id: string) => ipcRenderer.invoke('propertyContractors:delete', { id }),
 
+  // Transactions
+  parseTransactionCSV: (csvContent: string) => ipcRenderer.invoke('transactions:parseCSV', csvContent),
+  importTransactions: (data: any) => ipcRenderer.invoke('transactions:import', data),
+  getTransactions: (filters?: any) => ipcRenderer.invoke('transactions:getAll', filters),
+  getTransactionCount: (filters?: any) => ipcRenderer.invoke('transactions:getCount', filters),
+  updateTransaction: (id: string, data: any) => ipcRenderer.invoke('transactions:update', id, data),
+  deleteTransaction: (id: string) => ipcRenderer.invoke('transactions:delete', id),
+  bulkCategorizeTransactions: (ids: string[], category: string) => ipcRenderer.invoke('transactions:bulkCategorize', ids, category),
+  applyTransactionRules: () => ipcRenderer.invoke('transactions:applyRules'),
+  getTransactionBanks: () => ipcRenderer.invoke('transactions:getBanks'),
+  getTransactionMonthlySummary: (year: number, month: number) => ipcRenderer.invoke('transactions:getMonthlySummary', year, month),
+
+  // Category Rules
+  getCategoryRules: () => ipcRenderer.invoke('categoryRules:getAll'),
+  createCategoryRule: (data: any) => ipcRenderer.invoke('categoryRules:create', data),
+  updateCategoryRule: (id: string, data: any) => ipcRenderer.invoke('categoryRules:update', id, data),
+  deleteCategoryRule: (id: string) => ipcRenderer.invoke('categoryRules:delete', id),
+  autoGenerateCategoryRules: () => ipcRenderer.invoke('categoryRules:autoGenerate'),
+
   // Platform info
   platform: process.platform,
 });

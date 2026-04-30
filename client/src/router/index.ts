@@ -33,6 +33,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Budget' }
   },
   {
+    path: '/transactions',
+    name: 'Transactions',
+    component: () => import('@/views/TransactionsView.vue'),
+    meta: { title: 'Transactions' }
+  },
+  {
     path: '/projection',
     name: 'Projection',
     component: () => import('@/views/ProjectionView.vue'),

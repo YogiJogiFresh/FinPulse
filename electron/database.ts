@@ -204,6 +204,39 @@ export async function initDatabase(): Promise<Database> {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      post_date TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL,
+      original_description TEXT NOT NULL DEFAULT '',
+      amount REAL NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      bank TEXT NOT NULL DEFAULT 'manual',
+      account_label TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      import_batch TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS category_rules (
+      id TEXT PRIMARY KEY,
+      pattern TEXT NOT NULL,
+      category TEXT NOT NULL,
+      priority INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_bank ON transactions(bank)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_import_batch ON transactions(import_batch)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_category_rules_priority ON category_rules(priority DESC)');
+
   // Migrate: add recurring columns to property_expenses
   try {
     db.run("ALTER TABLE property_expenses ADD COLUMN recurring TEXT NOT NULL DEFAULT ''");

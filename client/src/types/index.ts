@@ -114,3 +114,48 @@ export interface PropertyContractor {
   createdAt: string
   updatedAt: string
 }
+
+export interface Transaction {
+  id: string
+  date: string
+  postDate: string
+  description: string
+  originalDescription: string
+  amount: number
+  category: string
+  bank: string
+  accountLabel: string
+  notes: string
+  importBatch: string
+  createdAt: string
+}
+
+export interface CategoryRule {
+  id: string
+  pattern: string
+  category: string
+  priority: number
+  createdAt: string
+}
+
+export interface TransactionFilters {
+  startDate?: string
+  endDate?: string
+  category?: string
+  bank?: string
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+export interface TransactionImportResult {
+  imported: number
+  skipped: number
+  batchId: string
+}
+
+export interface MonthlyCategorySummary {
+  category: string
+  total: number
+  count: number
+}

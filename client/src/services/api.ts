@@ -1,4 +1,4 @@
-import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution } from '@/types'
+import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary } from '@/types'
 
 // Accounts
 export function getAccounts(): Promise<Account[]> {
@@ -216,4 +216,66 @@ export function updatePropertyContractor(id: string, data: Partial<PropertyContr
 }
 export function deletePropertyContractor(id: string): Promise<void> {
   return window.api.deletePropertyContractor(id)
+}
+
+// Transactions
+export function parseTransactionCSV(csvContent: string) {
+  return window.api.parseTransactionCSV(csvContent)
+}
+
+export function importTransactions(data: { transactions: Array<{ date: string; postDate?: string; description: string; amount: number; category?: string }>; bank: string; accountLabel: string }): Promise<TransactionImportResult> {
+  return window.api.importTransactions(data)
+}
+
+export function getTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
+  return window.api.getTransactions(filters)
+}
+
+export function getTransactionCount(filters?: TransactionFilters): Promise<number> {
+  return window.api.getTransactionCount(filters)
+}
+
+export function updateTransaction(id: string, data: Partial<{ description: string; category: string; notes: string; amount: number; date: string }>): Promise<void> {
+  return window.api.updateTransaction(id, data)
+}
+
+export function deleteTransaction(id: string): Promise<void> {
+  return window.api.deleteTransaction(id)
+}
+
+export function bulkCategorizeTransactions(ids: string[], category: string): Promise<void> {
+  return window.api.bulkCategorizeTransactions(ids, category)
+}
+
+export function applyTransactionRules(): Promise<{ categorized: number }> {
+  return window.api.applyTransactionRules()
+}
+
+export function getTransactionBanks(): Promise<Array<{ bank: string; accountLabel: string }>> {
+  return window.api.getTransactionBanks()
+}
+
+export function getTransactionMonthlySummary(year: number, month: number): Promise<MonthlyCategorySummary[]> {
+  return window.api.getTransactionMonthlySummary(year, month)
+}
+
+// Category Rules
+export function getCategoryRules(): Promise<CategoryRule[]> {
+  return window.api.getCategoryRules()
+}
+
+export function createCategoryRule(data: { pattern: string; category: string; priority?: number }): Promise<{ id: string }> {
+  return window.api.createCategoryRule(data)
+}
+
+export function updateCategoryRule(id: string, data: Partial<{ pattern: string; category: string; priority: number }>): Promise<void> {
+  return window.api.updateCategoryRule(id, data)
+}
+
+export function deleteCategoryRule(id: string): Promise<void> {
+  return window.api.deleteCategoryRule(id)
+}
+
+export function autoGenerateCategoryRules(): Promise<{ created: number }> {
+  return window.api.autoGenerateCategoryRules()
 }

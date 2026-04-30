@@ -11,9 +11,23 @@
         </template>
       </Column>
       <Column field="name" header="Category" sortable />
-      <Column field="monthlyLimit" header="Monthly Limit" sortable>
+      <Column field="monthlyLimit" header="Budget" sortable>
         <template #body="{ data }">
           {{ formatCurrency(data.monthlyLimit) }}
+        </template>
+      </Column>
+      <Column header="Actual" style="width: 120px">
+        <template #body="{ data }">
+          <span :class="'actual-' + getSpendStatus(data.name, data.monthlyLimit)">
+            {{ formatCurrency(getActualSpend(data.name)) }}
+          </span>
+        </template>
+      </Column>
+      <Column header="Remaining" style="width: 120px">
+        <template #body="{ data }">
+          <span :class="'actual-' + getSpendStatus(data.name, data.monthlyLimit)">
+            {{ formatCurrency(data.monthlyLimit - getActualSpend(data.name)) }}
+          </span>
         </template>
       </Column>
       <Column header="Actions" style="width: 140px">
@@ -38,8 +52,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import type { BudgetCategory } from '@/types'
-import { getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory } from '@/services/api'
+import type { BudgetCategory, MonthlyCategorySummary } from '@/types'
+import { getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory, getTransactionMonthlySummary } from '@/services/api'
 import BudgetCategoryForm from '@/components/budget/BudgetCategoryForm.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -50,11 +64,30 @@ const categories = ref<BudgetCategory[]>([])
 const dialogVisible = ref(false)
 const editingCategory = ref<BudgetCategory | null>(null)
 const loading = ref(true)
+const monthlySummary = ref<MonthlyCategorySummary[]>([])
+
+function getActualSpend(categoryName: string): number {
+  const match = monthlySummary.value.find(s => s.category === categoryName)
+  return match ? match.total : 0
+}
+
+function getSpendStatus(categoryName: string, limit: number): 'under' | 'near' | 'over' {
+  const actual = getActualSpend(categoryName)
+  if (actual > limit) return 'over'
+  if (actual > limit * 0.8) return 'near'
+  return 'under'
+}
 
 async function loadBudget() {
   loading.value = true
   try {
-    categories.value = await getBudgetCategories()
+    const now = new Date()
+    const [cats, summary] = await Promise.all([
+      getBudgetCategories(),
+      getTransactionMonthlySummary(now.getFullYear(), now.getMonth() + 1)
+    ])
+    categories.value = cats
+    monthlySummary.value = summary
   } finally {
     loading.value = false
   }
@@ -124,5 +157,20 @@ onMounted(loadBudget)
   color: #94a3b8;
   font-size: 0.95rem;
   justify-content: center;
+}
+
+.actual-under {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.actual-near {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.actual-over {
+  color: #f87171;
+  font-weight: 600;
 }
 </style>

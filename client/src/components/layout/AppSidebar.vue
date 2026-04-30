@@ -25,6 +25,10 @@
         <i class="pi pi-chart-pie"></i>
         <span v-if="!collapsed">Budget</span>
       </router-link>
+      <router-link to="/transactions" class="nav-link" active-class="active">
+        <i class="pi pi-list"></i>
+        <span v-if="!collapsed">Transactions</span>
+      </router-link>
       <router-link to="/projection" class="nav-link" active-class="active">
         <i class="pi pi-chart-line"></i>
         <span v-if="!collapsed">Projection</span>

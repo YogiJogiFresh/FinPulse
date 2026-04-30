@@ -5,6 +5,7 @@ import { registerIncomeHandlers } from './income';
 import { registerSettingsHandlers } from './settings';
 import { registerHistoryHandlers } from './history';
 import { registerPropertyHandlers } from './properties';
+import { registerTransactionHandlers } from './transactions';
 
 export function registerAllHandlers(): void {
   registerAccountHandlers();
@@ -14,4 +15,5 @@ export function registerAllHandlers(): void {
   registerSettingsHandlers();
   registerHistoryHandlers();
   registerPropertyHandlers();
+  registerTransactionHandlers();
 }
