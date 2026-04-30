@@ -9,6 +9,7 @@
   >
     <div class="rules-description">
       <p>Rules auto-categorize transactions by matching patterns in the description. Higher priority rules are checked first.</p>
+      <p class="rules-hint"><i class="pi pi-info-circle"></i> Tip: The "Auto-Generate" button learns from your past categorizations — it finds merchants you've categorized 2+ times and creates rules from them.</p>
     </div>
 
     <!-- Add Rule Form -->
@@ -51,7 +52,9 @@
 
     <template #footer>
       <div class="rules-footer">
-        <Button label="Auto-Generate from History" icon="pi pi-bolt" severity="secondary" @click="autoGenerate" :loading="generating" />
+        <div class="auto-generate-group">
+          <Button label="Auto-Generate from History" icon="pi pi-bolt" severity="secondary" @click="autoGenerate" :loading="generating" v-tooltip.top="'Scans your categorized transactions, finds recurring merchants (2+ occurrences), and creates rules from their description patterns automatically.'" />
+        </div>
         <Button label="Close" @click="$emit('update:visible', false)" />
       </div>
     </template>
@@ -140,7 +143,20 @@ async function autoGenerate() {
 .rules-description p {
   color: #94a3b8;
   font-size: 0.875rem;
-  margin: 0;
+  margin: 0 0 6px;
+}
+
+.rules-hint {
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auto-generate-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .add-rule-form {
