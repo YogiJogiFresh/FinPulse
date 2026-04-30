@@ -267,6 +267,157 @@ function parseSynchrony(headers: string[], rows: string[][]): { transactions: Pa
   return { transactions, errors };
 }
 
+export interface ParsedTransactionWithCustom extends ParsedTransaction {
+  customData: Record<string, string>;
+}
+
+export interface ConfigParseResult {
+  bank: string;
+  transactions: ParsedTransactionWithCustom[];
+  errors: string[];
+}
+
+export interface BankConfigForParser {
+  id: string;
+  name: string;
+  dateColumn: string;
+  postDateColumn: string;
+  descriptionColumn: string;
+  amountType: 'signed' | 'split';
+  amountColumn: string;
+  debitColumn: string;
+  creditColumn: string;
+  detectionFields: string;
+  customColumns: { csvHeader: string; displayName: string }[];
+}
+
+export function parseCSVWithConfig(csvContent: string, config: BankConfigForParser): ConfigParseResult {
+  const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
+
+  if (lines.length < 2) {
+    return { bank: config.id, transactions: [], errors: ['File is empty or has no data rows.'] };
+  }
+
+  const headers = parseCSVLine(lines[0]);
+  const errors: string[] = [];
+
+  // Validate required headers exist
+  const headerLookup = (colName: string): number => {
+    if (!colName) return -1;
+    const normalized = colName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const idx = headers.findIndex(h => h.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized);
+    return idx;
+  };
+
+  const dateIdx = headerLookup(config.dateColumn);
+  if (dateIdx === -1) {
+    errors.push(`Missing required column: "${config.dateColumn}". Found headers: ${headers.join(', ')}`);
+    return { bank: config.id, transactions: [], errors };
+  }
+
+  const descIdx = headerLookup(config.descriptionColumn);
+  if (descIdx === -1) {
+    errors.push(`Missing required column: "${config.descriptionColumn}". Found headers: ${headers.join(', ')}`);
+    return { bank: config.id, transactions: [], errors };
+  }
+
+  let amtIdx = -1;
+  let debitIdx = -1;
+  let creditIdx = -1;
+
+  if (config.amountType === 'signed') {
+    amtIdx = headerLookup(config.amountColumn);
+    if (amtIdx === -1) {
+      errors.push(`Missing required column: "${config.amountColumn}". Found headers: ${headers.join(', ')}`);
+      return { bank: config.id, transactions: [], errors };
+    }
+  } else {
+    debitIdx = headerLookup(config.debitColumn);
+    creditIdx = headerLookup(config.creditColumn);
+    if (debitIdx === -1 && creditIdx === -1) {
+      errors.push(`Missing required columns: "${config.debitColumn}" and/or "${config.creditColumn}". Found headers: ${headers.join(', ')}`);
+      return { bank: config.id, transactions: [], errors };
+    }
+  }
+
+  const postDateIdx = config.postDateColumn ? headerLookup(config.postDateColumn) : -1;
+
+  // Map custom columns to indices
+  const customColIndices: { displayName: string; idx: number }[] = [];
+  for (const col of config.customColumns || []) {
+    const idx = headerLookup(col.csvHeader);
+    if (idx === -1) {
+      errors.push(`Custom column "${col.csvHeader}" not found in CSV headers. It will be skipped.`);
+    } else {
+      customColIndices.push({ displayName: col.displayName, idx });
+    }
+  }
+
+  const rows = lines.slice(1).map(line => parseCSVLine(line));
+  const transactions: ParsedTransactionWithCustom[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.length < 2) continue;
+
+    const date = normalizeDate(row[dateIdx] || '');
+    const postDate = postDateIdx >= 0 ? normalizeDate(row[postDateIdx] || '') : '';
+    const desc = (row[descIdx] || '').trim();
+
+    if (!date || !desc) {
+      errors.push(`Row ${i + 2}: Missing date or description`);
+      continue;
+    }
+
+    let amount: number;
+    if (config.amountType === 'signed') {
+      const rawAmount = parseFloat(row[amtIdx] || '');
+      if (isNaN(rawAmount)) {
+        errors.push(`Row ${i + 2}: Invalid amount "${row[amtIdx]}"`);
+        continue;
+      }
+      // For banks like Chase where negative=charge, we invert
+      // Convention: positive = charge/expense
+      amount = config.name.toLowerCase().includes('chase') ? -rawAmount : rawAmount;
+    } else {
+      const debit = parseFloat(row[debitIdx >= 0 ? debitIdx : 0]) || 0;
+      const credit = parseFloat(row[creditIdx >= 0 ? creditIdx : 0]) || 0;
+      amount = debit > 0 ? debit : (credit > 0 ? -credit : 0);
+      if (amount === 0 && debit === 0 && credit === 0) continue;
+    }
+
+    // Extract custom column values
+    const customData: Record<string, string> = {};
+    for (const col of customColIndices) {
+      customData[col.displayName] = (row[col.idx] || '').trim();
+    }
+
+    transactions.push({ date, postDate, description: desc, amount, customData });
+  }
+
+  return { bank: config.id, transactions, errors };
+}
+
+export function detectBankFromConfigs(csvContent: string, configs: BankConfigForParser[]): BankConfigForParser | null {
+  const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 1) return null;
+
+  const headers = parseCSVLine(lines[0]);
+  const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+  for (const config of configs) {
+    if (!config.detectionFields) continue;
+    const detectionFields = config.detectionFields.split(',').map(f => f.trim()).filter(Boolean);
+    const allMatch = detectionFields.every(field => {
+      const normalizedField = field.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return normalizedHeaders.includes(normalizedField);
+    });
+    if (allMatch && detectionFields.length > 0) return config;
+  }
+
+  return null;
+}
+
 export function parseCSV(csvContent: string): ParseResult {
   const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
 

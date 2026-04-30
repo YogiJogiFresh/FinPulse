@@ -272,6 +272,16 @@ export async function initDatabase(): Promise<Database> {
     db.run("ALTER TABLE property_expenses ADD COLUMN recurring_end_date TEXT NOT NULL DEFAULT ''");
   } catch { /* Column already exists */ }
 
+  // Migrate: add custom_columns to bank_configs
+  try {
+    db.run("ALTER TABLE bank_configs ADD COLUMN custom_columns TEXT NOT NULL DEFAULT '[]'");
+  } catch { /* Column already exists */ }
+
+  // Migrate: add custom_data to transactions
+  try {
+    db.run("ALTER TABLE transactions ADD COLUMN custom_data TEXT NOT NULL DEFAULT '{}'");
+  } catch { /* Column already exists */ }
+
   // Indexes for frequently queried columns
   db.run('CREATE INDEX IF NOT EXISTS idx_income_distributions_income_id ON income_distributions(income_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_property_details_property_id ON property_details(property_id)');

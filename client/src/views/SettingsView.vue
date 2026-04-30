@@ -218,6 +218,19 @@
             <InputText v-model="bankForm.detectionFields" placeholder="Comma-separated headers that identify this bank" class="w-full" />
             <small class="form-hint">CSV headers unique to this bank, used to auto-detect format on import</small>
           </div>
+          <div class="form-field">
+            <label>Custom Column Mappings</label>
+            <small class="form-hint">Map additional CSV headers to custom display columns in the Transactions table</small>
+            <div class="custom-columns-list">
+              <div v-for="(col, idx) in bankForm.customColumns" :key="idx" class="custom-col-row">
+                <InputText v-model="col.csvHeader" placeholder="CSV Header" class="custom-col-input" />
+                <span class="custom-col-arrow">→</span>
+                <InputText v-model="col.displayName" placeholder="Display Name" class="custom-col-input" />
+                <Button icon="pi pi-times" severity="danger" text rounded size="small" @click="bankForm.customColumns.splice(idx, 1)" />
+              </div>
+              <Button label="Add Column Mapping" icon="pi pi-plus" size="small" severity="secondary" @click="bankForm.customColumns.push({ csvHeader: '', displayName: '' })" />
+            </div>
+          </div>
         </div>
         <template #footer>
           <Button label="Cancel" severity="secondary" @click="bankDialogVisible = false" />
@@ -316,7 +329,8 @@ const bankForm = ref({
   amountColumn: '',
   debitColumn: '',
   creditColumn: '',
-  detectionFields: ''
+  detectionFields: '',
+  customColumns: [] as { csvHeader: string; displayName: string }[]
 })
 
 async function loadBankConfigs() {
@@ -325,7 +339,7 @@ async function loadBankConfigs() {
 
 function openAddBank() {
   editingBank.value = null
-  bankForm.value = { name: '', dateColumn: 'Transaction Date', postDateColumn: '', descriptionColumn: 'Description', amountType: 'signed', amountColumn: 'Amount', debitColumn: '', creditColumn: '', detectionFields: '' }
+  bankForm.value = { name: '', dateColumn: 'Transaction Date', postDateColumn: '', descriptionColumn: 'Description', amountType: 'signed', amountColumn: 'Amount', debitColumn: '', creditColumn: '', detectionFields: '', customColumns: [] }
   bankDialogVisible.value = true
 }
 
@@ -340,7 +354,8 @@ function editBank(config: BankConfig) {
     amountColumn: config.amountColumn,
     debitColumn: config.debitColumn,
     creditColumn: config.creditColumn,
-    detectionFields: config.detectionFields
+    detectionFields: config.detectionFields,
+    customColumns: config.customColumns ? [...config.customColumns] : []
   }
   bankDialogVisible.value = true
 }
@@ -659,6 +674,30 @@ onMounted(async () => {
 .form-hint {
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.custom-columns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.custom-col-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-col-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.custom-col-arrow {
+  color: #60a5fa;
+  font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 </style>

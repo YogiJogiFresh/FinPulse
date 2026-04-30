@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Transactions
   parseTransactionCSV: (csvContent: string) => ipcRenderer.invoke('transactions:parseCSV', csvContent),
+  parseTransactionCSVWithConfig: (csvContent: string, bankId?: string) => ipcRenderer.invoke('transactions:parseCSVWithConfig', csvContent, bankId),
   importTransactions: (data: any) => ipcRenderer.invoke('transactions:import', data),
   getTransactions: (filters?: any) => ipcRenderer.invoke('transactions:getAll', filters),
   getTransactionCount: (filters?: any) => ipcRenderer.invoke('transactions:getCount', filters),

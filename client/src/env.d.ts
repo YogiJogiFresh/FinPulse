@@ -64,7 +64,8 @@ interface Window {
     deletePropertyContractor(id: string): Promise<void>
     // Transactions
     parseTransactionCSV(csvContent: string): Promise<{ bank: string; transactions: Array<{ date: string; postDate: string; description: string; amount: number }>; errors: string[] }>
-    importTransactions(data: { transactions: Array<{ date: string; postDate?: string; description: string; amount: number; category?: string }>; bank: string; accountLabel: string }): Promise<import('./types').TransactionImportResult>
+    parseTransactionCSVWithConfig(csvContent: string, bankId?: string): Promise<{ bank: string; transactions: Array<{ date: string; postDate: string; description: string; amount: number; customData: Record<string, string> }>; errors: string[] }>
+    importTransactions(data: { transactions: Array<{ date: string; postDate?: string; description: string; amount: number; category?: string; customData?: Record<string, string> }>; bank: string; accountLabel: string }): Promise<import('./types').TransactionImportResult>
     getTransactions(filters?: import('./types').TransactionFilters): Promise<import('./types').Transaction[]>
     getTransactionCount(filters?: import('./types').TransactionFilters): Promise<number>
     updateTransaction(id: string, data: Partial<{ description: string; category: string; notes: string; amount: number; date: string }>): Promise<void>

@@ -92,20 +92,31 @@ export function registerSettingsHandlers(): void {
   // ── Bank Configs ──
 
   ipcMain.handle('bankConfigs:getAll', () => {
-    return query('SELECT * FROM bank_configs ORDER BY name').map(formatRow);
+    return query('SELECT * FROM bank_configs ORDER BY name').map(row => {
+      const formatted = formatRow(row);
+      // Parse custom_columns JSON
+      try {
+        formatted.customColumns = JSON.parse(formatted.customColumns || '[]');
+      } catch {
+        formatted.customColumns = [];
+      }
+      return formatted;
+    });
   });
 
   ipcMain.handle('bankConfigs:create', (_event, data: {
     name: string; dateColumn: string; postDateColumn?: string;
     descriptionColumn: string; amountType: string; amountColumn?: string;
     debitColumn?: string; creditColumn?: string; detectionFields: string;
+    customColumns?: { csvHeader: string; displayName: string }[];
   }) => {
     const db = getDatabase();
     const id = generateId();
+    const customColumnsJson = JSON.stringify(data.customColumns || []);
     db.run(
-      `INSERT INTO bank_configs (id, name, date_column, post_date_column, description_column, amount_type, amount_column, debit_column, credit_column, detection_fields)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, data.name, data.dateColumn, data.postDateColumn || '', data.descriptionColumn, data.amountType, data.amountColumn || '', data.debitColumn || '', data.creditColumn || '', data.detectionFields]
+      `INSERT INTO bank_configs (id, name, date_column, post_date_column, description_column, amount_type, amount_column, debit_column, credit_column, detection_fields, custom_columns)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, data.name, data.dateColumn, data.postDateColumn || '', data.descriptionColumn, data.amountType, data.amountColumn || '', data.debitColumn || '', data.creditColumn || '', data.detectionFields, customColumnsJson]
     );
     saveDatabase();
     return { id };
@@ -115,6 +126,7 @@ export function registerSettingsHandlers(): void {
     name?: string; dateColumn?: string; postDateColumn?: string;
     descriptionColumn?: string; amountType?: string; amountColumn?: string;
     debitColumn?: string; creditColumn?: string; detectionFields?: string;
+    customColumns?: { csvHeader: string; displayName: string }[];
   }) => {
     const sets: string[] = [];
     const params: any[] = [];
@@ -128,6 +140,7 @@ export function registerSettingsHandlers(): void {
     if (data.debitColumn !== undefined) { sets.push('debit_column = ?'); params.push(data.debitColumn); }
     if (data.creditColumn !== undefined) { sets.push('credit_column = ?'); params.push(data.creditColumn); }
     if (data.detectionFields !== undefined) { sets.push('detection_fields = ?'); params.push(data.detectionFields); }
+    if (data.customColumns !== undefined) { sets.push('custom_columns = ?'); params.push(JSON.stringify(data.customColumns)); }
 
     if (sets.length === 0) return;
     params.push(id);

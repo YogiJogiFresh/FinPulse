@@ -127,6 +127,7 @@ export interface Transaction {
   accountLabel: string
   notes: string
   importBatch: string
+  customData: Record<string, string>
   createdAt: string
 }
 
@@ -171,5 +172,6 @@ export interface BankConfig {
   debitColumn: string
   creditColumn: string
   detectionFields: string
+  customColumns: { csvHeader: string; displayName: string }[]
   createdAt: string
 }

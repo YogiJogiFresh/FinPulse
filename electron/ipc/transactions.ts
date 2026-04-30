@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { getDatabase, saveDatabase, generateId, query } from '../database';
-import { parseCSV, ParseResult } from '../parsers/csv-parser';
+import { parseCSV, ParseResult, parseCSVWithConfig, detectBankFromConfigs, ConfigParseResult, BankConfigForParser } from '../parsers/csv-parser';
 
 function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -11,14 +11,62 @@ function formatRow(row: any): any {
   for (const key of Object.keys(row)) {
     obj[snakeToCamel(key)] = row[key];
   }
+  // Parse custom_data JSON
+  if (typeof obj.customData === 'string') {
+    try { obj.customData = JSON.parse(obj.customData); } catch { obj.customData = {}; }
+  } else if (!obj.customData) {
+    obj.customData = {};
+  }
   return obj;
 }
 
 export function registerTransactionHandlers(): void {
 
-  // ── Parse CSV ──
+  // ── Parse CSV (legacy auto-detect) ──
   ipcMain.handle('transactions:parseCSV', (_event, csvContent: string): ParseResult => {
     return parseCSV(csvContent);
+  });
+
+  // ── Parse CSV with bank config ──
+  ipcMain.handle('transactions:parseCSVWithConfig', (_event, csvContent: string, bankId?: string): ConfigParseResult => {
+    // Load bank configs from DB
+    const rows = query('SELECT * FROM bank_configs ORDER BY name');
+    const configs: BankConfigForParser[] = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      dateColumn: row.date_column,
+      postDateColumn: row.post_date_column,
+      descriptionColumn: row.description_column,
+      amountType: row.amount_type as 'signed' | 'split',
+      amountColumn: row.amount_column,
+      debitColumn: row.debit_column,
+      creditColumn: row.credit_column,
+      detectionFields: row.detection_fields,
+      customColumns: (() => { try { return JSON.parse(row.custom_columns || '[]'); } catch { return []; } })()
+    }));
+
+    let config: BankConfigForParser | null = null;
+
+    if (bankId) {
+      config = configs.find(c => c.id === bankId) || null;
+      if (!config) {
+        return { bank: bankId, transactions: [], errors: [`Bank configuration "${bankId}" not found.`] };
+      }
+    } else {
+      // Auto-detect
+      config = detectBankFromConfigs(csvContent, configs);
+      if (!config) {
+        // Fall back to legacy parser
+        const legacyResult = parseCSV(csvContent);
+        return {
+          bank: legacyResult.bank,
+          transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
+          errors: legacyResult.errors
+        };
+      }
+    }
+
+    return parseCSVWithConfig(csvContent, config);
   });
 
   // ── Import transactions ──
@@ -29,6 +77,7 @@ export function registerTransactionHandlers(): void {
       description: string;
       amount: number;
       category?: string;
+      customData?: Record<string, string>;
     }>;
     bank: string;
     accountLabel: string;
@@ -51,9 +100,10 @@ export function registerTransactionHandlers(): void {
       }
 
       const id = generateId();
+      const customDataJson = JSON.stringify(txn.customData || {});
       db.run(
-        `INSERT INTO transactions (id, date, post_date, description, original_description, amount, category, bank, account_label, import_batch)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO transactions (id, date, post_date, description, original_description, amount, category, bank, account_label, import_batch, custom_data)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           txn.date,
@@ -64,7 +114,8 @@ export function registerTransactionHandlers(): void {
           txn.category || '',
           data.bank,
           data.accountLabel,
-          batchId
+          batchId,
+          customDataJson
         ]
       );
       imported++;

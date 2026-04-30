@@ -62,6 +62,11 @@
           <span class="txn-description">{{ data.description }}</span>
         </template>
       </Column>
+      <Column v-for="colName in customColumnNames" :key="colName" :header="colName" style="width: 10%">
+        <template #body="{ data }">
+          {{ data.customData?.[colName] || '' }}
+        </template>
+      </Column>
       <Column field="category" header="Category" sortable style="width: 18%">
         <template #body="{ data }">
           <Select
@@ -193,6 +198,18 @@ const manualCategory = ref('')
 const manualAccountLabel = ref('')
 
 const totalPages = computed(() => Math.ceil(totalCount.value / pageSize))
+
+const customColumnNames = computed(() => {
+  const keys = new Set<string>()
+  for (const txn of transactions.value) {
+    if (txn.customData && typeof txn.customData === 'object') {
+      for (const k of Object.keys(txn.customData)) {
+        keys.add(k)
+      }
+    }
+  }
+  return Array.from(keys)
+})
 
 const hasActiveFilters = computed(() =>
   searchText.value || filterCategory.value || filterBank.value || filterStartDate.value || filterEndDate.value
