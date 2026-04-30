@@ -169,7 +169,15 @@ const chartOptions = computed(() => ({
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      labels: { color: '#e2e8f0' }
+      labels: {
+        color: '#e2e8f0',
+        generateLabels: () => [
+          { text: 'Budget', fillStyle: 'rgba(96, 165, 250, 0.6)', strokeStyle: '#60a5fa', lineWidth: 1 },
+          { text: 'Under Budget', fillStyle: '#4ade80', strokeStyle: '#4ade80', lineWidth: 1 },
+          { text: 'Near Budget (>80%)', fillStyle: '#fbbf24', strokeStyle: '#fbbf24', lineWidth: 1 },
+          { text: 'Over Budget', fillStyle: '#f87171', strokeStyle: '#f87171', lineWidth: 1 }
+        ]
+      }
     },
     tooltip: {
       callbacks: {
