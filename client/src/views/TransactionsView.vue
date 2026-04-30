@@ -76,6 +76,7 @@
             optionLabel="label"
             optionValue="value"
             placeholder="Uncategorized"
+            editable
             class="category-inline-select"
             @change="(e: any) => updateCategory(data.id, e.value)"
           />

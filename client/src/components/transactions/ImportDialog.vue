@@ -225,7 +225,7 @@ async function onFileSelected(event: Event) {
     parsedTransactions.value = result.transactions.map(t => ({
       ...t,
       customData: t.customData || {},
-      category: ''
+      category: t.customData?.['Category'] || ''
     }))
 
     await applyRulesToPreview()
@@ -244,6 +244,14 @@ function extractCustomColumnNames(transactions: Array<{ customData?: Record<stri
       }
     }
   }
+  // Exclude columns already shown as dedicated preview columns
+  names.delete('Category')
+  names.delete('Date')
+  names.delete('Description')
+  names.delete('Amount')
+  names.delete('Debit')
+  names.delete('Credit')
+  names.delete('Post Date')
   return Array.from(names)
 }
 

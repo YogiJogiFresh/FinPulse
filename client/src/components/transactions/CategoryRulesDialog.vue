@@ -22,10 +22,11 @@
         optionLabel="label"
         optionValue="value"
         placeholder="Category"
+        editable
         class="category-select"
       />
-      <InputNumber v-model="newPriority" placeholder="Priority" :min="0" :max="100" class="priority-input" />
-      <Button icon="pi pi-plus" @click="addRule" :disabled="!newPattern || !newCategory" />
+      <InputNumber v-model="newPriority" placeholder="Priority" :min="0" :max="100" class="priority-input" v-tooltip.top="'Higher number = higher priority (checked first)'" />
+      <Button icon="pi pi-plus" @click="addRule" :disabled="!newPattern || !newCategory" class="add-rule-btn" />
     </div>
 
     <!-- Rules Table -->
@@ -170,17 +171,21 @@ async function autoGenerate() {
 
 .pattern-input {
   flex: 2;
-  min-width: 0;
+  min-width: 8rem;
 }
 
 .category-select {
-  flex: 1;
-  min-width: 0;
+  flex: 1.5;
+  min-width: 8rem;
 }
 
 .priority-input {
-  flex: 0 0 auto;
-  max-width: 5rem;
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.add-rule-btn {
+  flex-shrink: 0;
 }
 
 .rules-table {
