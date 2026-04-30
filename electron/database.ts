@@ -204,6 +204,17 @@ export async function initDatabase(): Promise<Database> {
     )
   `);
 
+  // Drop legacy transactions table (old schema without bank/import columns)
+  try {
+    const cols = db.exec("PRAGMA table_info(transactions)");
+    if (cols.length > 0) {
+      const colNames = cols[0].values.map((r: any) => r[1]);
+      if (!colNames.includes('bank')) {
+        db.run('DROP TABLE transactions');
+      }
+    }
+  } catch { /* table doesn't exist yet */ }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
