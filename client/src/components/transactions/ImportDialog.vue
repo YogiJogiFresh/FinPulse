@@ -55,7 +55,7 @@
         <div class="preview-info">
           <span class="bank-badge">{{ bankLabel }}</span>
           <span>{{ parsedTransactions.length }} transactions found</span>
-          <span v-if="parseErrors.length > 0" class="error-count">{{ parseErrors.length }} errors</span>
+          <span v-if="parseErrors.length > 0" class="warning-count">{{ parseErrors.length }} warning{{ parseErrors.length > 1 ? 's' : '' }}</span>
         </div>
         <Button label="Apply Rules" icon="pi pi-bolt" size="small" severity="secondary" @click="applyRulesToPreview" />
       </div>
@@ -96,9 +96,9 @@
         </Column>
       </DataTable>
 
-      <div v-if="parseErrors.length > 0" class="parse-errors-list">
+      <div v-if="parseErrors.length > 0" class="parse-errors-list parse-warnings">
         <details>
-          <summary>{{ parseErrors.length }} parsing errors</summary>
+          <summary>{{ parseErrors.length }} warning{{ parseErrors.length > 1 ? 's' : '' }}</summary>
           <ul>
             <li v-for="err in parseErrors" :key="err">{{ err }}</li>
           </ul>
@@ -391,6 +391,14 @@ function close() {
 
 .error-count {
   color: #fca5a5;
+}
+
+.warning-count {
+  color: #fbbf24;
+}
+
+.parse-warnings summary {
+  color: #fbbf24;
 }
 
 .preview-table {

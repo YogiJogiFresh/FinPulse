@@ -145,21 +145,16 @@
     <!-- Supported Banks -->
     <div class="settings-card">
       <h3><i class="pi pi-credit-card"></i> Supported Banks (CSV Import)</h3>
-      <p class="settings-hint">Configure which banks are supported for CSV transaction imports and how their columns are parsed.</p>
+      <p class="settings-hint">Add your banks and map custom CSV columns to display in the Transactions table.</p>
 
       <DataTable :value="bankConfigs" stripedRows dataKey="id" class="bank-configs-table">
         <Column field="name" header="Bank Name" />
-        <Column field="dateColumn" header="Date Column" />
-        <Column field="descriptionColumn" header="Description Column" />
-        <Column header="Amount" style="width: 20%">
+        <Column header="Custom Columns" style="width: 45%">
           <template #body="{ data }">
-            <span v-if="data.amountType === 'signed'">{{ data.amountColumn }} (signed)</span>
-            <span v-else>{{ data.debitColumn }} / {{ data.creditColumn }}</span>
-          </template>
-        </Column>
-        <Column field="detectionFields" header="Detection Fields" style="width: 25%">
-          <template #body="{ data }">
-            <span class="detection-chips">{{ data.detectionFields }}</span>
+            <span v-if="data.customColumns && data.customColumns.length" class="detection-chips">
+              {{ data.customColumns.map((c: any) => c.displayName).join(', ') }}
+            </span>
+            <span v-else class="form-hint">None configured</span>
           </template>
         </Column>
         <Column header="Actions" style="width: 12%">
@@ -181,46 +176,11 @@
         <div class="bank-form">
           <div class="form-field">
             <label>Bank Name</label>
-            <InputText v-model="bankForm.name" placeholder="e.g., Wells Fargo" class="w-full" />
-          </div>
-          <div class="form-field">
-            <label>Date Column Header</label>
-            <InputText v-model="bankForm.dateColumn" placeholder="e.g., Transaction Date" class="w-full" />
-          </div>
-          <div class="form-field">
-            <label>Post Date Column (optional)</label>
-            <InputText v-model="bankForm.postDateColumn" placeholder="e.g., Post Date" class="w-full" />
-          </div>
-          <div class="form-field">
-            <label>Description Column Header</label>
-            <InputText v-model="bankForm.descriptionColumn" placeholder="e.g., Description" class="w-full" />
-          </div>
-          <div class="form-field">
-            <label>Amount Type</label>
-            <Select v-model="bankForm.amountType" :options="[{label: 'Single signed column (negative=charge)', value: 'signed'}, {label: 'Separate Debit/Credit columns', value: 'split'}]" optionLabel="label" optionValue="value" class="w-full" />
-          </div>
-          <div v-if="bankForm.amountType === 'signed'" class="form-field">
-            <label>Amount Column Header</label>
-            <InputText v-model="bankForm.amountColumn" placeholder="e.g., Amount" class="w-full" />
-          </div>
-          <div v-if="bankForm.amountType === 'split'" class="form-row">
-            <div class="form-field flex-1">
-              <label>Debit Column</label>
-              <InputText v-model="bankForm.debitColumn" placeholder="e.g., Debit" class="w-full" />
-            </div>
-            <div class="form-field flex-1">
-              <label>Credit Column</label>
-              <InputText v-model="bankForm.creditColumn" placeholder="e.g., Credit" class="w-full" />
-            </div>
-          </div>
-          <div class="form-field">
-            <label>Detection Fields</label>
-            <InputText v-model="bankForm.detectionFields" placeholder="Comma-separated headers that identify this bank" class="w-full" />
-            <small class="form-hint">CSV headers unique to this bank, used to auto-detect format on import</small>
+            <InputText v-model="bankForm.name" placeholder="e.g., Chase, Capital One" class="w-full" />
           </div>
           <div class="form-field">
             <label>Custom Column Mappings</label>
-            <small class="form-hint">Map additional CSV headers to custom display columns in the Transactions table</small>
+            <small class="form-hint">Map CSV headers to custom display columns shown in the Transactions table. If a CSV is missing a mapped column, it will be skipped with a warning.</small>
             <div class="custom-columns-list">
               <div v-for="(col, idx) in bankForm.customColumns" :key="idx" class="custom-col-row">
                 <InputText v-model="col.csvHeader" placeholder="CSV Header" class="custom-col-input" />
@@ -234,7 +194,7 @@
         </div>
         <template #footer>
           <Button label="Cancel" severity="secondary" @click="bankDialogVisible = false" />
-          <Button :label="editingBank ? 'Save' : 'Add'" icon="pi pi-check" :disabled="!bankForm.name || !bankForm.dateColumn || !bankForm.descriptionColumn" @click="saveBankConfig" />
+          <Button :label="editingBank ? 'Save' : 'Add'" icon="pi pi-check" :disabled="!bankForm.name" @click="saveBankConfig" />
         </template>
       </Dialog>
     </div>
@@ -339,7 +299,7 @@ async function loadBankConfigs() {
 
 function openAddBank() {
   editingBank.value = null
-  bankForm.value = { name: '', dateColumn: 'Transaction Date', postDateColumn: '', descriptionColumn: 'Description', amountType: 'signed', amountColumn: 'Amount', debitColumn: '', creditColumn: '', detectionFields: '', customColumns: [] }
+  bankForm.value = { name: '', dateColumn: '', postDateColumn: '', descriptionColumn: '', amountType: 'signed', amountColumn: '', debitColumn: '', creditColumn: '', detectionFields: '', customColumns: [] }
   bankDialogVisible.value = true
 }
 
@@ -347,14 +307,14 @@ function editBank(config: BankConfig) {
   editingBank.value = config
   bankForm.value = {
     name: config.name,
-    dateColumn: config.dateColumn,
-    postDateColumn: config.postDateColumn,
-    descriptionColumn: config.descriptionColumn,
-    amountType: config.amountType,
-    amountColumn: config.amountColumn,
-    debitColumn: config.debitColumn,
-    creditColumn: config.creditColumn,
-    detectionFields: config.detectionFields,
+    dateColumn: config.dateColumn || '',
+    postDateColumn: config.postDateColumn || '',
+    descriptionColumn: config.descriptionColumn || '',
+    amountType: config.amountType || 'signed',
+    amountColumn: config.amountColumn || '',
+    debitColumn: config.debitColumn || '',
+    creditColumn: config.creditColumn || '',
+    detectionFields: config.detectionFields || '',
     customColumns: config.customColumns ? [...config.customColumns] : []
   }
   bankDialogVisible.value = true

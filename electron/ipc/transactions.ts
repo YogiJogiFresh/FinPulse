@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { getDatabase, saveDatabase, generateId, query } from '../database';
-import { parseCSV, ParseResult, parseCSVWithConfig, detectBankFromConfigs, ConfigParseResult, BankConfigForParser } from '../parsers/csv-parser';
+import { parseCSV, ParseResult, parseCSVWithConfig, detectBankFromConfigs, ConfigParseResult, BankConfigForParser, ParsedTransactionWithCustom, parseCSVLine } from '../parsers/csv-parser';
 
 function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -45,28 +45,69 @@ export function registerTransactionHandlers(): void {
       customColumns: (() => { try { return JSON.parse(row.custom_columns || '[]'); } catch { return []; } })()
     }));
 
-    let config: BankConfigForParser | null = null;
+    // Always use legacy parser for standard fields (date, description, amount)
+    const legacyResult = parseCSV(csvContent);
 
+    let config: BankConfigForParser | null = null;
     if (bankId) {
       config = configs.find(c => c.id === bankId) || null;
-      if (!config) {
-        return { bank: bankId, transactions: [], errors: [`Bank configuration "${bankId}" not found.`] };
-      }
     } else {
-      // Auto-detect
       config = detectBankFromConfigs(csvContent, configs);
-      if (!config) {
-        // Fall back to legacy parser
-        const legacyResult = parseCSV(csvContent);
-        return {
-          bank: legacyResult.bank,
-          transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
-          errors: legacyResult.errors
-        };
+    }
+
+    // If no bank config or no custom columns, return legacy result as-is
+    if (!config || !config.customColumns || config.customColumns.length === 0) {
+      return {
+        bank: config?.name || legacyResult.bank,
+        transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
+        errors: legacyResult.errors
+      };
+    }
+
+    // Overlay custom column extraction on top of legacy-parsed transactions
+    const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
+    const warnings: string[] = [...legacyResult.errors];
+
+    if (lines.length < 2) {
+      return {
+        bank: config.name,
+        transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
+        errors: warnings
+      };
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const headerLookup = (colName: string): number => {
+      const normalized = colName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return headers.findIndex(h => h.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized);
+    };
+
+    // Map custom columns, warn if missing but don't fail
+    const customColIndices: { displayName: string; idx: number }[] = [];
+    for (const col of config.customColumns) {
+      if (!col.csvHeader || !col.displayName) continue;
+      const idx = headerLookup(col.csvHeader);
+      if (idx === -1) {
+        warnings.push(`Warning: Custom column "${col.csvHeader}" not found in CSV. It will be skipped.`);
+      } else {
+        customColIndices.push({ displayName: col.displayName, idx });
       }
     }
 
-    return parseCSVWithConfig(csvContent, config);
+    // Parse data rows and attach custom data to each legacy transaction
+    const dataRows = lines.slice(1);
+    const transactions: ParsedTransactionWithCustom[] = legacyResult.transactions.map((txn, i) => {
+      const customData: Record<string, string> = {};
+      if (i < dataRows.length) {
+        const row = parseCSVLine(dataRows[i]);
+        for (const col of customColIndices) {
+          customData[col.displayName] = (row[col.idx] || '').trim();
+        }
+      }
+      return { ...txn, customData };
+    });
+
+    return { bank: config.name, transactions, errors: warnings };
   });
 
   // ── Import transactions ──
