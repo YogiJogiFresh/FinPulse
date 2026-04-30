@@ -303,15 +303,82 @@ export async function initDatabase(): Promise<Database> {
   const count = bankCount.length > 0 ? (bankCount[0].values[0][0] as number) : 0;
   if (count === 0) {
     const defaultBanks = [
-      { id: 'capital_one', name: 'Capital One', date_column: 'Transaction Date', post_date_column: 'Posted Date', description_column: 'Description', amount_type: 'split', amount_column: '', debit_column: 'Debit', credit_column: 'Credit', detection_fields: 'Debit,Credit,Posted Date' },
-      { id: 'chase', name: 'Chase', date_column: 'Transaction Date', post_date_column: 'Post Date', description_column: 'Description', amount_type: 'signed', amount_column: 'Amount', debit_column: '', credit_column: '', detection_fields: 'Transaction Date,Post Date,Type,Amount' },
-      { id: 'citi', name: 'Citi', date_column: 'Date', post_date_column: '', description_column: 'Description', amount_type: 'split', amount_column: '', debit_column: 'Debit', credit_column: 'Credit', detection_fields: 'Status,Debit,Credit' },
-      { id: 'synchrony', name: 'Synchrony', date_column: 'Date', post_date_column: '', description_column: 'Description', amount_type: 'signed', amount_column: 'Amount', debit_column: '', credit_column: '', detection_fields: 'Date,Description,Amount' },
+      { id: 'capital_one', name: 'Capital One', date_column: 'Transaction Date', post_date_column: 'Posted Date', description_column: 'Description', amount_type: 'split', amount_column: '', debit_column: 'Debit', credit_column: 'Credit', detection_fields: 'Debit,Credit,Posted Date', custom_columns: JSON.stringify([
+        { csvHeader: 'Transaction Date', displayName: 'Date' },
+        { csvHeader: 'Posted Date', displayName: 'Post Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Card No.', displayName: 'Card No.' },
+        { csvHeader: 'Category', displayName: 'Category' },
+        { csvHeader: 'Debit', displayName: 'Debit' },
+        { csvHeader: 'Credit', displayName: 'Credit' }
+      ]) },
+      { id: 'chase', name: 'Chase', date_column: 'Transaction Date', post_date_column: 'Post Date', description_column: 'Description', amount_type: 'signed', amount_column: 'Amount', debit_column: '', credit_column: '', detection_fields: 'Transaction Date,Post Date,Type,Amount', custom_columns: JSON.stringify([
+        { csvHeader: 'Transaction Date', displayName: 'Date' },
+        { csvHeader: 'Post Date', displayName: 'Post Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Category', displayName: 'Category' },
+        { csvHeader: 'Type', displayName: 'Type' },
+        { csvHeader: 'Amount', displayName: 'Amount' },
+        { csvHeader: 'Memo', displayName: 'Memo' }
+      ]) },
+      { id: 'citi', name: 'Citi', date_column: 'Date', post_date_column: '', description_column: 'Description', amount_type: 'split', amount_column: '', debit_column: 'Debit', credit_column: 'Credit', detection_fields: 'Status,Debit,Credit', custom_columns: JSON.stringify([
+        { csvHeader: 'Status', displayName: 'Status' },
+        { csvHeader: 'Date', displayName: 'Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Debit', displayName: 'Debit' },
+        { csvHeader: 'Credit', displayName: 'Credit' }
+      ]) },
+      { id: 'synchrony', name: 'Synchrony', date_column: 'Date', post_date_column: '', description_column: 'Description', amount_type: 'signed', amount_column: 'Amount', debit_column: '', credit_column: '', detection_fields: 'Date,Description,Amount', custom_columns: JSON.stringify([
+        { csvHeader: 'Date', displayName: 'Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Amount', displayName: 'Amount' }
+      ]) },
     ];
     for (const b of defaultBanks) {
       db.run(
-        `INSERT INTO bank_configs (id, name, date_column, post_date_column, description_column, amount_type, amount_column, debit_column, credit_column, detection_fields) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [b.id, b.name, b.date_column, b.post_date_column, b.description_column, b.amount_type, b.amount_column, b.debit_column, b.credit_column, b.detection_fields]
+        `INSERT INTO bank_configs (id, name, date_column, post_date_column, description_column, amount_type, amount_column, debit_column, credit_column, detection_fields, custom_columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [b.id, b.name, b.date_column, b.post_date_column, b.description_column, b.amount_type, b.amount_column, b.debit_column, b.credit_column, b.detection_fields, b.custom_columns]
+      );
+    }
+    saveDatabase();
+  } else {
+    // Migrate existing default banks to include custom_columns if empty
+    const defaultMappings: Record<string, { csvHeader: string; displayName: string }[]> = {
+      capital_one: [
+        { csvHeader: 'Transaction Date', displayName: 'Date' },
+        { csvHeader: 'Posted Date', displayName: 'Post Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Card No.', displayName: 'Card No.' },
+        { csvHeader: 'Category', displayName: 'Category' },
+        { csvHeader: 'Debit', displayName: 'Debit' },
+        { csvHeader: 'Credit', displayName: 'Credit' }
+      ],
+      chase: [
+        { csvHeader: 'Transaction Date', displayName: 'Date' },
+        { csvHeader: 'Post Date', displayName: 'Post Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Category', displayName: 'Category' },
+        { csvHeader: 'Type', displayName: 'Type' },
+        { csvHeader: 'Amount', displayName: 'Amount' },
+        { csvHeader: 'Memo', displayName: 'Memo' }
+      ],
+      citi: [
+        { csvHeader: 'Status', displayName: 'Status' },
+        { csvHeader: 'Date', displayName: 'Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Debit', displayName: 'Debit' },
+        { csvHeader: 'Credit', displayName: 'Credit' }
+      ],
+      synchrony: [
+        { csvHeader: 'Date', displayName: 'Date' },
+        { csvHeader: 'Description', displayName: 'Description' },
+        { csvHeader: 'Amount', displayName: 'Amount' }
+      ]
+    };
+    for (const [id, cols] of Object.entries(defaultMappings)) {
+      db.run(
+        `UPDATE bank_configs SET custom_columns = ? WHERE id = ? AND (custom_columns = '[]' OR custom_columns = '')`,
+        [JSON.stringify(cols), id]
       );
     }
     saveDatabase();
