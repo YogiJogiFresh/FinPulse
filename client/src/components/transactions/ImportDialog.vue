@@ -4,7 +4,7 @@
     @update:visible="$emit('update:visible', $event)"
     header="Import Transactions"
     :modal="true"
-    :style="{ width: '900px', maxHeight: '85vh' }"
+    :style="{ width: '95vw', maxWidth: '56rem', maxHeight: '85vh' }"
     :closable="true"
   >
     <!-- Step 1: File selection -->
@@ -49,9 +49,9 @@
         stripedRows
         class="preview-table"
       >
-        <Column field="date" header="Date" style="width: 100px" />
+        <Column field="date" header="Date" style="width: 12%" />
         <Column field="description" header="Description" />
-        <Column field="category" header="Category" style="width: 170px">
+        <Column field="category" header="Category" style="width: 22%">
           <template #body="{ data, index }">
             <Select
               :modelValue="data.category"
@@ -64,7 +64,7 @@
             />
           </template>
         </Column>
-        <Column field="amount" header="Amount" style="width: 100px">
+        <Column field="amount" header="Amount" style="width: 12%">
           <template #body="{ data }">
             <span :class="data.amount > 0 ? 'amount-debit' : 'amount-credit'">
               {{ formatCurrency(data.amount) }}
@@ -249,7 +249,7 @@ function close() {
 
 <style scoped>
 .import-step {
-  min-height: 200px;
+  min-height: 12.5rem;
 }
 
 .import-instructions {
@@ -352,7 +352,7 @@ function close() {
 }
 
 .parse-errors-list ul {
-  max-height: 100px;
+  max-height: 6.25rem;
   overflow-y: auto;
   padding-left: 20px;
 }

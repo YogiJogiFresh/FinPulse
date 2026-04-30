@@ -246,7 +246,7 @@ async function confirmImport() {
 }
 
 .preview-table-wrapper {
-  max-height: 400px;
+  max-height: 25rem;
   overflow: auto;
   border: 1px solid #334155;
   border-radius: 8px;
@@ -287,16 +287,16 @@ async function confirmImport() {
 }
 
 .preview-date-input {
-  min-width: 90px;
+  min-width: 5.5rem;
   text-align: center;
 }
 
 .preview-name-input {
-  min-width: 120px;
+  min-width: 7.5rem;
 }
 
 .preview-value-input {
-  min-width: 80px;
+  min-width: 5rem;
   text-align: right;
 }
 

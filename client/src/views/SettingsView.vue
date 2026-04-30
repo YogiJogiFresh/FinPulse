@@ -151,18 +151,18 @@
         <Column field="name" header="Bank Name" />
         <Column field="dateColumn" header="Date Column" />
         <Column field="descriptionColumn" header="Description Column" />
-        <Column header="Amount" style="width: 160px">
+        <Column header="Amount" style="width: 20%">
           <template #body="{ data }">
             <span v-if="data.amountType === 'signed'">{{ data.amountColumn }} (signed)</span>
             <span v-else>{{ data.debitColumn }} / {{ data.creditColumn }}</span>
           </template>
         </Column>
-        <Column field="detectionFields" header="Detection Fields" style="width: 200px">
+        <Column field="detectionFields" header="Detection Fields" style="width: 25%">
           <template #body="{ data }">
             <span class="detection-chips">{{ data.detectionFields }}</span>
           </template>
         </Column>
-        <Column header="Actions" style="width: 100px">
+        <Column header="Actions" style="width: 12%">
           <template #body="{ data }">
             <div class="action-buttons">
               <Button icon="pi pi-pencil" severity="info" text rounded size="small" @click="editBank(data)" />
@@ -177,7 +177,7 @@
       </div>
 
       <!-- Bank Config Dialog -->
-      <Dialog v-model:visible="bankDialogVisible" :header="editingBank ? 'Edit Bank' : 'Add Bank'" modal :style="{ width: '550px' }">
+      <Dialog v-model:visible="bankDialogVisible" :header="editingBank ? 'Edit Bank' : 'Add Bank'" modal :style="{ width: '90vw', maxWidth: '35rem' }">
         <div class="bank-form">
           <div class="form-field">
             <label>Bank Name</label>
@@ -541,7 +541,7 @@ onMounted(async () => {
 }
 
 .setting-input {
-  width: 80px;
+  width: 5rem;
   padding: 6px 10px;
   background-color: #0f172a;
   border: 1px solid #334155;

@@ -50,14 +50,14 @@
           <Button icon="pi pi-plus" label="Add Detail" size="small" @click="showAddDetail = true" />
         </div>
         <DataTable :value="details" :loading="tabLoading" stripedRows dataKey="_id" v-if="details.length > 0 || tabLoading" size="small">
-          <Column field="category" header="Category" :sortable="true" style="width: 120px">
+          <Column field="category" header="Category" :sortable="true" style="width: 20%">
             <template #body="{ data }">
               <Tag :value="formatCategory(data.category)" :severity="detailCategorySeverity(data.category)" />
             </template>
           </Column>
           <Column field="label" header="Label" :sortable="true" />
           <Column field="value" header="Value" :sortable="true" />
-          <Column header="" style="width: 80px">
+          <Column header="" style="width: 10%">
             <template #body="{ data }">
               <Button icon="pi pi-pencil" text rounded size="small" @click="editDetail(data)" />
               <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="doDeleteDetail(data._id)" />
@@ -75,20 +75,20 @@
         </div>
         <DataTable :value="expenses" :loading="tabLoading" stripedRows dataKey="_id" v-if="expenses.length > 0 || tabLoading" size="small"
           :sortField="'date'" :sortOrder="-1">
-          <Column field="date" header="Date" :sortable="true" style="width: 120px" />
+          <Column field="date" header="Date" :sortable="true" style="width: 12%" />
           <Column field="description" header="Description" :sortable="true" />
-          <Column field="category" header="Category" :sortable="true" style="width: 130px">
+          <Column field="category" header="Category" :sortable="true" style="width: 14%">
             <template #body="{ data }">
               <Tag :value="formatCategory(data.category)" :severity="expenseCategorySeverity(data.category)" />
             </template>
           </Column>
-          <Column field="amount" header="Amount" :sortable="true" style="width: 120px">
+          <Column field="amount" header="Amount" :sortable="true" style="width: 12%">
             <template #body="{ data }">
               <span class="text-expense">{{ formatCurrency(data.amount) }}</span>
             </template>
           </Column>
           <Column field="notes" header="Notes" />
-          <Column field="recurring" header="Recurring" style="width: 110px">
+          <Column field="recurring" header="Recurring" style="width: 12%">
             <template #body="{ data }">
               <Tag v-if="data.recurring === 'monthly'" value="Monthly" severity="info" />
               <Tag v-else-if="data.recurring === 'quarterly'" value="Quarterly" severity="success" />
@@ -96,7 +96,7 @@
               <span v-else class="text-muted">—</span>
             </template>
           </Column>
-          <Column header="" style="width: 80px">
+          <Column header="" style="width: 8%">
             <template #body="{ data }">
               <Button icon="pi pi-pencil" text rounded size="small" @click="editExpense(data)" />
               <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="doDeleteExpense(data._id)" />
@@ -117,15 +117,15 @@
         </div>
         <DataTable :value="contractors" :loading="tabLoading" stripedRows dataKey="_id" v-if="contractors.length > 0 || tabLoading" size="small">
           <Column field="name" header="Name" :sortable="true" />
-          <Column field="specialty" header="Specialty" :sortable="true" style="width: 130px">
+          <Column field="specialty" header="Specialty" :sortable="true" style="width: 16%">
             <template #body="{ data }">
               <Tag :value="formatCategory(data.specialty)" />
             </template>
           </Column>
-          <Column field="phone" header="Phone" style="width: 140px" />
+          <Column field="phone" header="Phone" style="width: 15%" />
           <Column field="email" header="Email" />
           <Column field="notes" header="Notes" />
-          <Column header="" style="width: 80px">
+          <Column header="" style="width: 10%">
             <template #body="{ data }">
               <Button icon="pi pi-pencil" text rounded size="small" @click="editContractor(data)" />
               <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="doDeleteContractor(data._id)" />
@@ -137,7 +137,7 @@
     </div>
 
     <!-- Add Property Dialog -->
-    <Dialog v-model:visible="showAddProperty" header="Add Property" modal :style="{ width: '450px' }">
+    <Dialog v-model:visible="showAddProperty" header="Add Property" modal :style="{ width: '90vw', maxWidth: '28rem' }">
       <div class="dialog-form">
         <div class="field">
           <label>Name</label>
@@ -173,7 +173,7 @@
     </Dialog>
 
     <!-- Add Detail Dialog -->
-    <Dialog v-model:visible="showAddDetail" header="Add Detail" modal :style="{ width: '400px' }">
+    <Dialog v-model:visible="showAddDetail" header="Add Detail" modal :style="{ width: '90vw', maxWidth: '25rem' }">
       <div class="dialog-form">
         <div class="field">
           <label>Category</label>
@@ -195,7 +195,7 @@
     </Dialog>
 
     <!-- Add Expense Dialog -->
-    <Dialog v-model:visible="showAddExpense" :header="editingExpenseId ? 'Edit Expense' : 'Add Expense'" modal :style="{ width: '450px' }">
+    <Dialog v-model:visible="showAddExpense" :header="editingExpenseId ? 'Edit Expense' : 'Add Expense'" modal :style="{ width: '90vw', maxWidth: '28rem' }">
       <div class="dialog-form">
         <div class="field-row">
           <div class="field">
@@ -237,7 +237,7 @@
     </Dialog>
 
     <!-- Add Contractor Dialog -->
-    <Dialog v-model:visible="showAddContractor" header="Add Contractor" modal :style="{ width: '450px' }">
+    <Dialog v-model:visible="showAddContractor" header="Add Contractor" modal :style="{ width: '90vw', maxWidth: '28rem' }">
       <div class="dialog-form">
         <div class="field">
           <label>Name</label>
@@ -269,7 +269,7 @@
     </Dialog>
 
     <!-- Delete Property Confirmation -->
-    <Dialog v-model:visible="showDeleteConfirm" header="Delete Property" modal :style="{ width: '400px' }">
+    <Dialog v-model:visible="showDeleteConfirm" header="Delete Property" modal :style="{ width: '90vw', maxWidth: '25rem' }">
       <p>Are you sure you want to delete <strong>{{ selectedProperty?.name }}</strong>? This will also delete all details, expenses, and contractors for this property.</p>
       <template #footer>
         <Button label="Cancel" severity="secondary" text @click="showDeleteConfirm = false" />
@@ -624,7 +624,7 @@ onMounted(loadProperties)
 
 <style scoped>
 .properties-view {
-  max-width: 1100px;
+  max-width: 70rem;
   margin: 0 auto;
   padding: 24px;
 }

@@ -18,7 +18,7 @@
         <span class="text-muted">{{ formatDate(data.updatedAt) }}</span>
       </template>
     </Column>
-    <Column header="Actions" style="width: 140px">
+    <Column header="Actions" style="width: 15%">
       <template #body="{ data }">
         <div class="action-buttons">
           <Button icon="pi pi-pencil" severity="info" text rounded @click="$emit('edit', data)" />

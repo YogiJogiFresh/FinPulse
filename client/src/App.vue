@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout">
     <AppSidebar v-model="sidebarCollapsed" />
-    <div class="app-main" :style="{ marginLeft: sidebarCollapsed ? '64px' : '220px' }">
+    <div class="app-main" :style="{ marginLeft: sidebarCollapsed ? '4rem' : '13.75rem' }">
       <AppHeader />
       <main class="app-content">
         <router-view />

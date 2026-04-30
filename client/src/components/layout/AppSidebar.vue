@@ -72,7 +72,7 @@ function toggle() {
 
 <style scoped>
 .sidebar {
-  width: 220px;
+  width: 13.75rem;
   height: 100vh;
   position: fixed;
   left: 0;
@@ -86,7 +86,7 @@ function toggle() {
 }
 
 .sidebar.collapsed {
-  width: 64px;
+  width: 4rem;
 }
 
 .sidebar-brand {

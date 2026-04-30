@@ -52,7 +52,7 @@
       class="transactions-table"
     >
       <Column selectionMode="multiple" headerStyle="width: 3rem" />
-      <Column field="date" header="Date" sortable style="width: 110px">
+      <Column field="date" header="Date" sortable style="width: 12%">
         <template #body="{ data }">
           {{ formatDate(data.date) }}
         </template>
@@ -62,7 +62,7 @@
           <span class="txn-description">{{ data.description }}</span>
         </template>
       </Column>
-      <Column field="category" header="Category" sortable style="width: 180px">
+      <Column field="category" header="Category" sortable style="width: 18%">
         <template #body="{ data }">
           <Select
             :modelValue="data.category"
@@ -75,15 +75,15 @@
           />
         </template>
       </Column>
-      <Column field="amount" header="Amount" sortable style="width: 120px">
+      <Column field="amount" header="Amount" sortable style="width: 12%">
         <template #body="{ data }">
           <span :class="data.amount > 0 ? 'amount-debit' : 'amount-credit'">
             {{ formatCurrency(data.amount) }}
           </span>
         </template>
       </Column>
-      <Column field="accountLabel" header="Account" sortable style="width: 150px" />
-      <Column header="Actions" style="width: 80px">
+      <Column field="accountLabel" header="Account" sortable style="width: 14%" />
+      <Column header="Actions" style="width: 7%">
         <template #body="{ data }">
           <Button icon="pi pi-trash" severity="danger" text rounded size="small" @click="deleteSingle(data.id)" />
         </template>
@@ -113,7 +113,7 @@
     <CategoryRulesDialog v-model:visible="showRulesDialog" :categories="budgetCategories" />
 
     <!-- Manual Add Dialog -->
-    <Dialog v-model:visible="showAddDialog" header="Add Transaction" modal :style="{ width: '500px' }">
+    <Dialog v-model:visible="showAddDialog" header="Add Transaction" modal :style="{ width: '90vw', maxWidth: '32rem' }">
       <div class="add-form">
         <div class="form-field">
           <label>Date</label>
@@ -435,15 +435,15 @@ onMounted(async () => {
 }
 
 .search-input {
-  width: 220px;
+  width: 14rem;
 }
 
 .filter-select {
-  width: 160px;
+  width: 10rem;
 }
 
 .date-filter {
-  width: 150px;
+  width: 9.5rem;
 }
 
 .quick-date-filters {
@@ -467,7 +467,7 @@ onMounted(async () => {
 }
 
 .bulk-select {
-  width: 180px;
+  width: 11rem;
 }
 
 .transactions-table {

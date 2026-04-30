@@ -286,7 +286,7 @@ onMounted(async () => {
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: 16px;
 }
 
@@ -300,8 +300,8 @@ onMounted(async () => {
 }
 
 .card-icon {
-  width: 48px;
-  height: 48px;
+  width: 3rem;
+  height: 3rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -382,8 +382,8 @@ onMounted(async () => {
 }
 
 .budget-dot {
-  width: 12px;
-  height: 12px;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 3px;
   flex-shrink: 0;
 }

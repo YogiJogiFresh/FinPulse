@@ -11,7 +11,7 @@
       @delete="onDelete"
     />
 
-    <Dialog v-model:visible="dialogVisible" :header="editingDebt ? 'Edit Debt' : 'New Debt'" modal :style="{ width: '500px' }">
+    <Dialog v-model:visible="dialogVisible" :header="editingDebt ? 'Edit Debt' : 'New Debt'" modal :style="{ width: '90vw', maxWidth: '32rem' }">
       <DebtForm
         :debt="editingDebt"
         @save="onSave"

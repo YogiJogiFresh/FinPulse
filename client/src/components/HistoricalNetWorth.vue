@@ -398,11 +398,11 @@ onMounted(reload)
 }
 
 .chart-container {
-  height: 400px;
+  height: 25rem;
 }
 
 .chart-compact {
-  height: 300px;
+  height: 18.75rem;
 }
 
 .projection-summary {
@@ -471,7 +471,7 @@ onMounted(reload)
 
 .filter-datepicker,
 .filter-multiselect {
-  min-width: 160px;
+  min-width: 10rem;
   font-size: 0.85rem;
 }
 

@@ -110,7 +110,7 @@ function onSubmit() {
 }
 
 .color-input {
-  width: 120px;
+  width: 7.5rem;
 }
 
 .error-text {

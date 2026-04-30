@@ -47,7 +47,7 @@
     </div>
 
     <!-- Create/Edit Dialog -->
-    <Dialog v-model:visible="dialogVisible" :header="editingSource ? 'Edit Income Source' : 'New Income Source'" modal :style="{ width: '500px' }">
+    <Dialog v-model:visible="dialogVisible" :header="editingSource ? 'Edit Income Source' : 'New Income Source'" modal :style="{ width: '90vw', maxWidth: '32rem' }">
       <form class="income-form" @submit.prevent="onSave">
         <div class="form-field">
           <label for="name">Name</label>

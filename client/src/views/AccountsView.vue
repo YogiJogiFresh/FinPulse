@@ -6,7 +6,7 @@
 
     <AccountList :accounts="accounts" :loading="loading" @edit="openEdit" @delete="onDelete" />
 
-    <Dialog v-model:visible="dialogVisible" :header="editingAccount ? 'Edit Account' : 'New Account'" modal :style="{ width: '450px' }">
+    <Dialog v-model:visible="dialogVisible" :header="editingAccount ? 'Edit Account' : 'New Account'" modal :style="{ width: '90vw', maxWidth: '28rem' }">
       <AccountForm :account="editingAccount" @save="onSave" @cancel="dialogVisible = false" />
     </Dialog>
   </div>

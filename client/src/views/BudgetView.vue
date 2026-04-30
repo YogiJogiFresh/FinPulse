@@ -5,7 +5,7 @@
     </div>
 
     <DataTable :value="categories" :loading="loading" stripedRows dataKey="_id" paginator :rows="15" v-if="categories.length > 0 || loading">
-      <Column header="Color" style="width: 60px">
+      <Column header="Color" style="width: 8%">
         <template #body="{ data }">
           <span class="color-swatch" :style="{ backgroundColor: data.color }"></span>
         </template>
@@ -16,21 +16,21 @@
           {{ formatCurrency(data.monthlyLimit) }}
         </template>
       </Column>
-      <Column header="Actual" style="width: 120px">
+      <Column header="Actual" style="width: 14%">
         <template #body="{ data }">
           <span :class="'actual-' + getSpendStatus(data.name, data.monthlyLimit)">
             {{ formatCurrency(getActualSpend(data.name)) }}
           </span>
         </template>
       </Column>
-      <Column header="Remaining" style="width: 120px">
+      <Column header="Remaining" style="width: 14%">
         <template #body="{ data }">
           <span :class="'actual-' + getSpendStatus(data.name, data.monthlyLimit)">
             {{ formatCurrency(data.monthlyLimit - getActualSpend(data.name)) }}
           </span>
         </template>
       </Column>
-      <Column header="Actions" style="width: 140px">
+      <Column header="Actions" style="width: 14%">
         <template #body="{ data }">
           <div class="action-buttons">
             <Button icon="pi pi-pencil" severity="info" text rounded @click="openEdit(data)" />
@@ -44,7 +44,7 @@
       <span>No budget categories yet. Add one to start tracking.</span>
     </div>
 
-    <Dialog v-model:visible="dialogVisible" :header="editingCategory ? 'Edit Category' : 'New Category'" modal :style="{ width: '450px' }">
+    <Dialog v-model:visible="dialogVisible" :header="editingCategory ? 'Edit Category' : 'New Category'" modal :style="{ width: '90vw', maxWidth: '28rem' }">
       <BudgetCategoryForm :category="editingCategory" @save="onSave" @cancel="dialogVisible = false" />
     </Dialog>
   </div>
@@ -139,8 +139,8 @@ onMounted(loadBudget)
 
 .color-swatch {
   display: inline-block;
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 4px;
 }
 

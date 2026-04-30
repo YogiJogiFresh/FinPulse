@@ -64,6 +64,6 @@ const chartOptions = {
 <style scoped>
 .chart-container {
   position: relative;
-  height: 300px;
+  height: 18.75rem;
 }
 </style>

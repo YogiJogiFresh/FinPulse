@@ -221,7 +221,7 @@
         </div>
 
         <!-- Add Entry Dialog -->
-        <Dialog v-model:visible="addEntryVisible" :header="'Add Entry' + (addEntryAccount ? ' — ' + addEntryAccount : '')" modal :style="{ width: '400px' }">
+        <Dialog v-model:visible="addEntryVisible" :header="'Add Entry' + (addEntryAccount ? ' — ' + addEntryAccount : '')" modal :style="{ width: '90vw', maxWidth: '25rem' }">
           <div class="add-entry-form">
             <div v-if="!addEntryAccount" class="add-entry-field">
               <label>Account</label>
@@ -872,7 +872,7 @@ async function confirmAddEntry() {
 .horizon-row label {
   color: #94a3b8;
   font-weight: 600;
-  min-width: 110px;
+  min-width: 7rem;
 }
 
 .horizon-controls {
@@ -885,14 +885,14 @@ async function confirmAddEntry() {
 .horizon-slider {
   flex: 1;
   accent-color: #38bdf8;
-  height: 6px;
+  height: 0.375rem;
 }
 
 .horizon-value {
   color: #f1f5f9;
   font-weight: 700;
   font-size: 1.1rem;
-  min-width: 80px;
+  min-width: 5rem;
 }
 
 .accounts-table-wrapper {
@@ -922,8 +922,8 @@ async function confirmAddEntry() {
 
 .accounts-table input[type="checkbox"] {
   accent-color: #38bdf8;
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
 }
 
 .account-name {
@@ -945,7 +945,7 @@ async function confirmAddEntry() {
 
 .rate-input,
 .contribution-input {
-  width: 100px;
+  width: 6.25rem;
   padding: 6px 10px;
   background-color: #0f172a;
   border: 1px solid #334155;
@@ -988,12 +988,12 @@ async function confirmAddEntry() {
 }
 
 .chart-container {
-  height: 400px;
+  height: 25rem;
 }
 
 .projection-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 16px;
   margin-top: 24px;
   padding-top: 20px;
@@ -1050,7 +1050,7 @@ async function confirmAddEntry() {
 }
 
 .tag-cell {
-  min-width: 80px;
+  min-width: 5rem;
 }
 
 .tag-chip {
@@ -1077,7 +1077,7 @@ async function confirmAddEntry() {
 }
 
 .tag-chips-input {
-  min-width: 120px;
+  min-width: 7.5rem;
 }
 
 .tag-chips-input :deep(.p-chips-input-token input) {
@@ -1101,7 +1101,7 @@ async function confirmAddEntry() {
   border: 1px solid #3b82f6;
   border-radius: 6px;
   padding: 4px 8px;
-  min-height: 28px;
+  min-height: 1.75rem;
 }
 
 .tag-edit-row {
@@ -1350,7 +1350,7 @@ async function confirmAddEntry() {
 .page-indicator {
   color: #94a3b8;
   font-size: 0.8rem;
-  min-width: 50px;
+  min-width: 3rem;
   text-align: center;
 }
 

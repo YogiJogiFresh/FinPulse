@@ -55,12 +55,12 @@ function progressClass(percentage: number): string {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 260px;
+  min-width: 16rem;
 }
 
 .color-swatch {
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
   border-radius: 3px;
   flex-shrink: 0;
 }
@@ -68,7 +68,7 @@ function progressClass(percentage: number): string {
 .category-name {
   font-weight: 600;
   color: #f1f5f9;
-  min-width: 100px;
+  min-width: 6.25rem;
 }
 
 .budget-amounts {
@@ -83,7 +83,7 @@ function progressClass(percentage: number): string {
 
 .budget-pct {
   font-weight: 600;
-  min-width: 50px;
+  min-width: 3rem;
   text-align: right;
   color: #cbd5e1;
 }
