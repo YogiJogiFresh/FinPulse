@@ -22,8 +22,8 @@
         optionLabel="label"
         optionValue="value"
         placeholder="Category"
-        editable
         class="category-select"
+        v-tooltip.top="'Categories are added from the Budget page'"
       />
       <InputNumber v-model="newPriority" placeholder="Priority" :min="0" :max="100" class="priority-input" v-tooltip.top="'Higher number = higher priority (checked first)'" />
       <Button icon="pi pi-plus" @click="addRule" :disabled="!newPattern || !newCategory" class="add-rule-btn" />

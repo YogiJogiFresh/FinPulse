@@ -76,8 +76,8 @@
             optionLabel="label"
             optionValue="value"
             placeholder="Uncategorized"
-            editable
             class="category-inline-select"
+            v-tooltip.top="'Categories are added from the Budget page'"
             @change="(e: any) => updateCategory(data.id, e.value)"
           />
         </template>
