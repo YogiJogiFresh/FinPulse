@@ -228,7 +228,8 @@ export function parseTransactionCSVWithConfig(csvContent: string, bankId?: strin
 }
 
 export function importTransactions(data: { transactions: Array<{ date: string; postDate?: string; description: string; amount: number; category?: string; customData?: Record<string, string> }>; bank: string; accountLabel: string }): Promise<TransactionImportResult> {
-  return window.api.importTransactions(data)
+  // Deep-clone to strip Vue reactive proxies before IPC transfer
+  return window.api.importTransactions(JSON.parse(JSON.stringify(data)))
 }
 
 export function getTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
