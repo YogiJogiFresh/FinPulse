@@ -3,6 +3,7 @@
     <div class="page-header">
       <h1>Transactions</h1>
       <div class="header-actions">
+        <Button label="Add Transaction" icon="pi pi-plus" severity="success" @click="openManualAdd" />
         <Button label="Import CSV" icon="pi pi-upload" @click="showImportDialog = true" />
         <Button label="Manage Rules" icon="pi pi-cog" severity="secondary" @click="showRulesDialog = true" />
       </div>
@@ -24,6 +25,11 @@
       </div>
       <div class="filter-group">
         <DatePicker v-model="filterEndDate" placeholder="End Date" dateFormat="yy-mm-dd" showIcon class="date-filter" @date-select="loadTransactions" />
+      </div>
+      <div class="quick-date-filters">
+        <Button label="7d" size="small" :severity="quickDateActive === 7 ? 'primary' : 'secondary'" text @click="setQuickDate(7)" />
+        <Button label="14d" size="small" :severity="quickDateActive === 14 ? 'primary' : 'secondary'" text @click="setQuickDate(14)" />
+        <Button label="30d" size="small" :severity="quickDateActive === 30 ? 'primary' : 'secondary'" text @click="setQuickDate(30)" />
       </div>
       <Button v-if="hasActiveFilters" label="Clear Filters" icon="pi pi-times" severity="secondary" text @click="clearFilters" />
     </div>
@@ -85,7 +91,7 @@
       <template #empty>
         <div class="empty-state">
           <i class="pi pi-inbox"></i>
-          <p>No transactions yet. Import a CSV to get started.</p>
+          <p>No transactions yet. Import a CSV or add one manually.</p>
         </div>
       </template>
     </DataTable>
@@ -105,6 +111,36 @@
 
     <!-- Rules Dialog -->
     <CategoryRulesDialog v-model:visible="showRulesDialog" :categories="budgetCategories" />
+
+    <!-- Manual Add Dialog -->
+    <Dialog v-model:visible="showAddDialog" header="Add Transaction" modal :style="{ width: '500px' }">
+      <div class="add-form">
+        <div class="form-field">
+          <label>Date</label>
+          <DatePicker v-model="manualDate" dateFormat="yy-mm-dd" showIcon class="w-full" />
+        </div>
+        <div class="form-field">
+          <label>Description</label>
+          <InputText v-model="manualDescription" placeholder="e.g., Grocery Store" class="w-full" />
+        </div>
+        <div class="form-field">
+          <label>Amount</label>
+          <InputNumber v-model="manualAmount" mode="currency" currency="USD" class="w-full" />
+        </div>
+        <div class="form-field">
+          <label>Category</label>
+          <Select v-model="manualCategory" :options="allCategoryOptions" optionLabel="label" optionValue="value" placeholder="Select Category" class="w-full" />
+        </div>
+        <div class="form-field">
+          <label>Account Label</label>
+          <InputText v-model="manualAccountLabel" placeholder="e.g., Chase Freedom" class="w-full" />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" severity="secondary" @click="showAddDialog = false" />
+        <Button label="Add" icon="pi pi-check" :disabled="!manualDescription || manualAmount === null" @click="saveManualTransaction" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -114,14 +150,16 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import InputNumber from 'primevue/inputnumber'
 import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
+import Dialog from 'primevue/dialog'
 import ImportDialog from '@/components/transactions/ImportDialog.vue'
 import CategoryRulesDialog from '@/components/transactions/CategoryRulesDialog.vue'
 import {
   getTransactions, getTransactionCount, updateTransaction,
   deleteTransaction, bulkCategorizeTransactions, getTransactionBanks,
-  getBudgetCategories
+  getBudgetCategories, importTransactions
 } from '@/services/api'
 import type { Transaction, BudgetCategory } from '@/types'
 
@@ -130,7 +168,7 @@ const selectedTransactions = ref<Transaction[]>([])
 const loading = ref(false)
 const totalCount = ref(0)
 const currentPage = ref(1)
-const pageSize = 50
+const pageSize = 20
 
 const searchText = ref('')
 const filterCategory = ref('')
@@ -138,12 +176,21 @@ const filterBank = ref('')
 const filterStartDate = ref<Date | null>(null)
 const filterEndDate = ref<Date | null>(null)
 const bulkCategory = ref('')
+const quickDateActive = ref<number | null>(null)
 
 const budgetCategories = ref<BudgetCategory[]>([])
 const bankList = ref<Array<{ bank: string; accountLabel: string }>>([])
 
 const showImportDialog = ref(false)
 const showRulesDialog = ref(false)
+const showAddDialog = ref(false)
+
+// Manual add form
+const manualDate = ref<Date | null>(new Date())
+const manualDescription = ref('')
+const manualAmount = ref<number | null>(null)
+const manualCategory = ref('')
+const manualAccountLabel = ref('')
 
 const totalPages = computed(() => Math.ceil(totalCount.value / pageSize))
 
@@ -188,6 +235,24 @@ function formatDate(dateStr: string): string {
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(amount))
+}
+
+function setQuickDate(days: number) {
+  if (quickDateActive.value === days) {
+    // Toggle off
+    quickDateActive.value = null
+    filterStartDate.value = null
+    filterEndDate.value = null
+  } else {
+    quickDateActive.value = days
+    const end = new Date()
+    const start = new Date()
+    start.setDate(start.getDate() - days)
+    filterStartDate.value = start
+    filterEndDate.value = end
+  }
+  currentPage.value = 1
+  loadTransactions()
 }
 
 function buildFilters() {
@@ -263,6 +328,7 @@ function clearFilters() {
   filterBank.value = ''
   filterStartDate.value = null
   filterEndDate.value = null
+  quickDateActive.value = null
   currentPage.value = 1
   loadTransactions()
 }
@@ -287,6 +353,37 @@ function onImported() {
   loadBanks()
 }
 
+function openManualAdd() {
+  manualDate.value = new Date()
+  manualDescription.value = ''
+  manualAmount.value = null
+  manualCategory.value = ''
+  manualAccountLabel.value = ''
+  showAddDialog.value = true
+}
+
+async function saveManualTransaction() {
+  if (!manualDescription.value || manualAmount.value === null) return
+
+  const date = manualDate.value
+    ? manualDate.value.toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10)
+
+  await importTransactions({
+    transactions: [{
+      date,
+      description: manualDescription.value,
+      amount: manualAmount.value,
+      category: manualCategory.value
+    }],
+    bank: 'manual',
+    accountLabel: manualAccountLabel.value
+  })
+
+  showAddDialog.value = false
+  await loadTransactions()
+}
+
 async function loadBanks() {
   bankList.value = await getTransactionBanks()
 }
@@ -301,7 +398,6 @@ onMounted(async () => {
 <style scoped>
 .transactions-page {
   padding: 24px;
-  max-width: 1400px;
 }
 
 .page-header {
@@ -348,6 +444,14 @@ onMounted(async () => {
 
 .date-filter {
   width: 150px;
+}
+
+.quick-date-filters {
+  display: flex;
+  gap: 2px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 2px;
 }
 
 .bulk-actions {
@@ -428,5 +532,27 @@ onMounted(async () => {
 .page-number {
   color: #e2e8f0;
   font-size: 0.875rem;
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.w-full {
+  width: 100%;
 }
 </style>

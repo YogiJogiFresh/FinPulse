@@ -141,14 +141,104 @@
         <span v-if="taxSaved" class="saved-badge"><i class="pi pi-check-circle"></i> Saved</span>
       </div>
     </div>
+
+    <!-- Supported Banks -->
+    <div class="settings-card">
+      <h3><i class="pi pi-credit-card"></i> Supported Banks (CSV Import)</h3>
+      <p class="settings-hint">Configure which banks are supported for CSV transaction imports and how their columns are parsed.</p>
+
+      <DataTable :value="bankConfigs" stripedRows dataKey="id" class="bank-configs-table">
+        <Column field="name" header="Bank Name" />
+        <Column field="dateColumn" header="Date Column" />
+        <Column field="descriptionColumn" header="Description Column" />
+        <Column header="Amount" style="width: 160px">
+          <template #body="{ data }">
+            <span v-if="data.amountType === 'signed'">{{ data.amountColumn }} (signed)</span>
+            <span v-else>{{ data.debitColumn }} / {{ data.creditColumn }}</span>
+          </template>
+        </Column>
+        <Column field="detectionFields" header="Detection Fields" style="width: 200px">
+          <template #body="{ data }">
+            <span class="detection-chips">{{ data.detectionFields }}</span>
+          </template>
+        </Column>
+        <Column header="Actions" style="width: 100px">
+          <template #body="{ data }">
+            <div class="action-buttons">
+              <Button icon="pi pi-pencil" severity="info" text rounded size="small" @click="editBank(data)" />
+              <Button icon="pi pi-trash" severity="danger" text rounded size="small" @click="deleteBank(data.id)" />
+            </div>
+          </template>
+        </Column>
+      </DataTable>
+
+      <div class="add-bank-row">
+        <Button label="Add Bank" icon="pi pi-plus" size="small" @click="openAddBank" />
+      </div>
+
+      <!-- Bank Config Dialog -->
+      <Dialog v-model:visible="bankDialogVisible" :header="editingBank ? 'Edit Bank' : 'Add Bank'" modal :style="{ width: '550px' }">
+        <div class="bank-form">
+          <div class="form-field">
+            <label>Bank Name</label>
+            <InputText v-model="bankForm.name" placeholder="e.g., Wells Fargo" class="w-full" />
+          </div>
+          <div class="form-field">
+            <label>Date Column Header</label>
+            <InputText v-model="bankForm.dateColumn" placeholder="e.g., Transaction Date" class="w-full" />
+          </div>
+          <div class="form-field">
+            <label>Post Date Column (optional)</label>
+            <InputText v-model="bankForm.postDateColumn" placeholder="e.g., Post Date" class="w-full" />
+          </div>
+          <div class="form-field">
+            <label>Description Column Header</label>
+            <InputText v-model="bankForm.descriptionColumn" placeholder="e.g., Description" class="w-full" />
+          </div>
+          <div class="form-field">
+            <label>Amount Type</label>
+            <Select v-model="bankForm.amountType" :options="[{label: 'Single signed column (negative=charge)', value: 'signed'}, {label: 'Separate Debit/Credit columns', value: 'split'}]" optionLabel="label" optionValue="value" class="w-full" />
+          </div>
+          <div v-if="bankForm.amountType === 'signed'" class="form-field">
+            <label>Amount Column Header</label>
+            <InputText v-model="bankForm.amountColumn" placeholder="e.g., Amount" class="w-full" />
+          </div>
+          <div v-if="bankForm.amountType === 'split'" class="form-row">
+            <div class="form-field flex-1">
+              <label>Debit Column</label>
+              <InputText v-model="bankForm.debitColumn" placeholder="e.g., Debit" class="w-full" />
+            </div>
+            <div class="form-field flex-1">
+              <label>Credit Column</label>
+              <InputText v-model="bankForm.creditColumn" placeholder="e.g., Credit" class="w-full" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Detection Fields</label>
+            <InputText v-model="bankForm.detectionFields" placeholder="Comma-separated headers that identify this bank" class="w-full" />
+            <small class="form-hint">CSV headers unique to this bank, used to auto-detect format on import</small>
+          </div>
+        </div>
+        <template #footer>
+          <Button label="Cancel" severity="secondary" @click="bankDialogVisible = false" />
+          <Button :label="editingBank ? 'Save' : 'Add'" icon="pi pi-check" :disabled="!bankForm.name || !bankForm.dateColumn || !bankForm.descriptionColumn" @click="saveBankConfig" />
+        </template>
+      </Dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion } from '@/services/api'
+import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion, getBankConfigs, createBankConfig, updateBankConfig, deleteBankConfig } from '@/services/api'
+import type { BankConfig } from '@/types'
 import Button from 'primevue/button'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Dialog from 'primevue/dialog'
+import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import ExcelImport from '@/components/ExcelImport.vue'
 import { useToast } from 'primevue/usetoast'
 
@@ -213,6 +303,65 @@ async function doExport() {
   }
 }
 
+// Bank Configs
+const bankConfigs = ref<BankConfig[]>([])
+const bankDialogVisible = ref(false)
+const editingBank = ref<BankConfig | null>(null)
+const bankForm = ref({
+  name: '',
+  dateColumn: '',
+  postDateColumn: '',
+  descriptionColumn: '',
+  amountType: 'signed',
+  amountColumn: '',
+  debitColumn: '',
+  creditColumn: '',
+  detectionFields: ''
+})
+
+async function loadBankConfigs() {
+  bankConfigs.value = await getBankConfigs()
+}
+
+function openAddBank() {
+  editingBank.value = null
+  bankForm.value = { name: '', dateColumn: 'Transaction Date', postDateColumn: '', descriptionColumn: 'Description', amountType: 'signed', amountColumn: 'Amount', debitColumn: '', creditColumn: '', detectionFields: '' }
+  bankDialogVisible.value = true
+}
+
+function editBank(config: BankConfig) {
+  editingBank.value = config
+  bankForm.value = {
+    name: config.name,
+    dateColumn: config.dateColumn,
+    postDateColumn: config.postDateColumn,
+    descriptionColumn: config.descriptionColumn,
+    amountType: config.amountType,
+    amountColumn: config.amountColumn,
+    debitColumn: config.debitColumn,
+    creditColumn: config.creditColumn,
+    detectionFields: config.detectionFields
+  }
+  bankDialogVisible.value = true
+}
+
+async function saveBankConfig() {
+  if (editingBank.value) {
+    await updateBankConfig(editingBank.value.id, bankForm.value)
+  } else {
+    await createBankConfig(bankForm.value)
+  }
+  bankDialogVisible.value = false
+  await loadBankConfigs()
+  toast.add({ severity: 'success', summary: 'Saved', detail: `Bank config ${editingBank.value ? 'updated' : 'added'}`, life: 3000 })
+}
+
+async function deleteBank(id: string) {
+  await deleteBankConfig(id)
+  await loadBankConfigs()
+  toast.add({ severity: 'info', summary: 'Deleted', detail: 'Bank config removed', life: 3000 })
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -222,6 +371,7 @@ onMounted(async () => {
     originalFederal = federalTaxRate.value
     originalState = stateTaxRate.value
     appVersion.value = version
+    await loadBankConfigs()
   } catch {
     // defaults
   } finally {
@@ -452,6 +602,63 @@ onMounted(async () => {
 
 .export-btn:hover {
   background-color: #7dd3fc;
+}
+
+.bank-configs-table {
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.detection-chips {
+  font-size: 0.8rem;
+  color: #60a5fa;
+  font-family: monospace;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.add-bank-row {
+  margin-top: 12px;
+}
+
+.bank-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: #64748b;
 }
 
 </style>

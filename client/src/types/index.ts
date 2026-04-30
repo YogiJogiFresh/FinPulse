@@ -159,3 +159,17 @@ export interface MonthlyCategorySummary {
   total: number
   count: number
 }
+
+export interface BankConfig {
+  id: string
+  name: string
+  dateColumn: string
+  postDateColumn: string
+  descriptionColumn: string
+  amountType: 'signed' | 'split'
+  amountColumn: string
+  debitColumn: string
+  creditColumn: string
+  detectionFields: string
+  createdAt: string
+}

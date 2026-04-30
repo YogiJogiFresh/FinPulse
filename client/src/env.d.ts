@@ -79,6 +79,11 @@ interface Window {
     updateCategoryRule(id: string, data: Partial<{ pattern: string; category: string; priority: number }>): Promise<void>
     deleteCategoryRule(id: string): Promise<void>
     autoGenerateCategoryRules(): Promise<{ created: number }>
+    // Bank Configs
+    getBankConfigs(): Promise<import('./types').BankConfig[]>
+    createBankConfig(data: { name: string; dateColumn: string; postDateColumn?: string; descriptionColumn: string; amountType: string; amountColumn?: string; debitColumn?: string; creditColumn?: string; detectionFields: string }): Promise<{ id: string }>
+    updateBankConfig(id: string, data: Partial<{ name: string; dateColumn: string; postDateColumn: string; descriptionColumn: string; amountType: string; amountColumn: string; debitColumn: string; creditColumn: string; detectionFields: string }>): Promise<void>
+    deleteBankConfig(id: string): Promise<void>
     getAppVersion(): Promise<string>
     platform: string
   }

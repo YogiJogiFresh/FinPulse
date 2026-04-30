@@ -1,4 +1,4 @@
-import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary } from '@/types'
+import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary, BankConfig } from '@/types'
 
 // Accounts
 export function getAccounts(): Promise<Account[]> {
@@ -278,4 +278,21 @@ export function deleteCategoryRule(id: string): Promise<void> {
 
 export function autoGenerateCategoryRules(): Promise<{ created: number }> {
   return window.api.autoGenerateCategoryRules()
+}
+
+// Bank Configs
+export function getBankConfigs(): Promise<BankConfig[]> {
+  return window.api.getBankConfigs()
+}
+
+export function createBankConfig(data: { name: string; dateColumn: string; postDateColumn?: string; descriptionColumn: string; amountType: string; amountColumn?: string; debitColumn?: string; creditColumn?: string; detectionFields: string }): Promise<{ id: string }> {
+  return window.api.createBankConfig(data)
+}
+
+export function updateBankConfig(id: string, data: Partial<{ name: string; dateColumn: string; postDateColumn: string; descriptionColumn: string; amountType: string; amountColumn: string; debitColumn: string; creditColumn: string; detectionFields: string }>): Promise<void> {
+  return window.api.updateBankConfig(id, data)
+}
+
+export function deleteBankConfig(id: string): Promise<void> {
+  return window.api.deleteBankConfig(id)
 }

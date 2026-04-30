@@ -248,6 +248,22 @@ export async function initDatabase(): Promise<Database> {
   db.run('CREATE INDEX IF NOT EXISTS idx_transactions_import_batch ON transactions(import_batch)');
   db.run('CREATE INDEX IF NOT EXISTS idx_category_rules_priority ON category_rules(priority DESC)');
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bank_configs (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      date_column TEXT NOT NULL DEFAULT 'Transaction Date',
+      post_date_column TEXT NOT NULL DEFAULT '',
+      description_column TEXT NOT NULL DEFAULT 'Description',
+      amount_type TEXT NOT NULL DEFAULT 'signed',
+      amount_column TEXT NOT NULL DEFAULT 'Amount',
+      debit_column TEXT NOT NULL DEFAULT '',
+      credit_column TEXT NOT NULL DEFAULT '',
+      detection_fields TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migrate: add recurring columns to property_expenses
   try {
     db.run("ALTER TABLE property_expenses ADD COLUMN recurring TEXT NOT NULL DEFAULT ''");
@@ -270,6 +286,25 @@ export async function initDatabase(): Promise<Database> {
   ];
   for (const [key, value] of defaults) {
     db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);
+  }
+
+  // Seed default bank configs if empty
+  const bankCount = db.exec('SELECT COUNT(*) FROM bank_configs');
+  const count = bankCount.length > 0 ? (bankCount[0].values[0][0] as number) : 0;
+  if (count === 0) {
+    const defaultBanks = [
+      { id: 'capital_one', name: 'Capital One', date_column: 'Transaction Date', post_date_column: 'Posted Date', description_column: 'Description', amount_type: 'split', amount_column: '', debit_column: 'Debit', credit_column: 'Credit', detection_fields: 'Debit,Credit,Posted Date' },
+      { id: 'chase', name: 'Chase', date_column: 'Transaction Date', post_date_column: 'Post Date', description_column: 'Description', amount_type: 'signed', amount_column: 'Amount', debit_column: '', credit_column: '', detection_fields: 'Transaction Date,Post Date,Type,Amount' },
+      { id: 'citi', name: 'Citi', date_column: 'Date', post_date_column: '', description_column: 'Description', amount_type: 'split', amount_column: '', debit_column: 'Debit', credit_column: 'Credit', detection_fields: 'Status,Debit,Credit' },
+      { id: 'synchrony', name: 'Synchrony', date_column: 'Date', post_date_column: '', description_column: 'Description', amount_type: 'signed', amount_column: 'Amount', debit_column: '', credit_column: '', detection_fields: 'Date,Description,Amount' },
+    ];
+    for (const b of defaultBanks) {
+      db.run(
+        `INSERT INTO bank_configs (id, name, date_column, post_date_column, description_column, amount_type, amount_column, debit_column, credit_column, detection_fields) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [b.id, b.name, b.date_column, b.post_date_column, b.description_column, b.amount_type, b.amount_column, b.debit_column, b.credit_column, b.detection_fields]
+      );
+    }
+    saveDatabase();
   }
 
   return db;

@@ -90,6 +90,12 @@ contextBridge.exposeInMainWorld('api', {
   deleteCategoryRule: (id: string) => ipcRenderer.invoke('categoryRules:delete', id),
   autoGenerateCategoryRules: () => ipcRenderer.invoke('categoryRules:autoGenerate'),
 
+  // Bank Configs
+  getBankConfigs: () => ipcRenderer.invoke('bankConfigs:getAll'),
+  createBankConfig: (data: any) => ipcRenderer.invoke('bankConfigs:create', data),
+  updateBankConfig: (id: string, data: any) => ipcRenderer.invoke('bankConfigs:update', id, data),
+  deleteBankConfig: (id: string) => ipcRenderer.invoke('bankConfigs:delete', id),
+
   // Platform info
   platform: process.platform,
 });

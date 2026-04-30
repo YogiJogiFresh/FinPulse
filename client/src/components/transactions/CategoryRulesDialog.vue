@@ -6,6 +6,7 @@
     :modal="true"
     :style="{ width: '700px', maxHeight: '80vh' }"
     :closable="true"
+    :contentStyle="{ overflow: 'hidden' }"
   >
     <div class="rules-description">
       <p>Rules auto-categorize transactions by matching patterns in the description. Higher priority rules are checked first.</p>
@@ -34,13 +35,13 @@
           <span class="rule-pattern">{{ data.pattern }}</span>
         </template>
       </Column>
-      <Column field="category" header="Category" sortable style="width: 160px">
+      <Column field="category" header="Category" sortable style="width: 140px">
         <template #body="{ data }">
           <span class="rule-category">{{ data.category }}</span>
         </template>
       </Column>
-      <Column field="priority" header="Priority" sortable style="width: 90px" />
-      <Column header="Actions" style="width: 80px">
+      <Column field="priority" header="Pri" sortable style="width: 60px" />
+      <Column header="" style="width: 50px">
         <template #body="{ data }">
           <Button icon="pi pi-trash" severity="danger" text rounded size="small" @click="removeRule(data.id)" />
         </template>
@@ -164,28 +165,34 @@ async function autoGenerate() {
   gap: 8px;
   align-items: center;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .pattern-input {
   flex: 1;
+  min-width: 150px;
 }
 
 .category-select {
-  width: 160px;
+  width: 140px;
 }
 
 .priority-input {
-  width: 90px;
+  width: 80px;
 }
 
 .rules-table {
   border-radius: 6px;
   overflow: hidden;
+  width: 100%;
+  table-layout: fixed;
 }
 
 .rule-pattern {
   font-family: monospace;
   color: #60a5fa;
+  word-break: break-all;
+  font-size: 0.85rem;
 }
 
 .rule-category {

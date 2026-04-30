@@ -1,5 +1,17 @@
 import { ipcMain } from 'electron';
-import { getDatabase, saveDatabase, query } from '../database';
+import { getDatabase, saveDatabase, generateId, query } from '../database';
+
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+function formatRow(row: any): any {
+  const obj: any = {};
+  for (const key of Object.keys(row)) {
+    obj[snakeToCamel(key)] = row[key];
+  }
+  return obj;
+}
 
 export function registerSettingsHandlers(): void {
   ipcMain.handle('settings:getAll', () => {
@@ -74,6 +86,60 @@ export function registerSettingsHandlers(): void {
         db.run('DELETE FROM category_rules');
         break;
     }
+    saveDatabase();
+  });
+
+  // ── Bank Configs ──
+
+  ipcMain.handle('bankConfigs:getAll', () => {
+    return query('SELECT * FROM bank_configs ORDER BY name').map(formatRow);
+  });
+
+  ipcMain.handle('bankConfigs:create', (_event, data: {
+    name: string; dateColumn: string; postDateColumn?: string;
+    descriptionColumn: string; amountType: string; amountColumn?: string;
+    debitColumn?: string; creditColumn?: string; detectionFields: string;
+  }) => {
+    const db = getDatabase();
+    const id = generateId();
+    db.run(
+      `INSERT INTO bank_configs (id, name, date_column, post_date_column, description_column, amount_type, amount_column, debit_column, credit_column, detection_fields)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, data.name, data.dateColumn, data.postDateColumn || '', data.descriptionColumn, data.amountType, data.amountColumn || '', data.debitColumn || '', data.creditColumn || '', data.detectionFields]
+    );
+    saveDatabase();
+    return { id };
+  });
+
+  ipcMain.handle('bankConfigs:update', (_event, id: string, data: {
+    name?: string; dateColumn?: string; postDateColumn?: string;
+    descriptionColumn?: string; amountType?: string; amountColumn?: string;
+    debitColumn?: string; creditColumn?: string; detectionFields?: string;
+  }) => {
+    const sets: string[] = [];
+    const params: any[] = [];
+
+    if (data.name !== undefined) { sets.push('name = ?'); params.push(data.name); }
+    if (data.dateColumn !== undefined) { sets.push('date_column = ?'); params.push(data.dateColumn); }
+    if (data.postDateColumn !== undefined) { sets.push('post_date_column = ?'); params.push(data.postDateColumn); }
+    if (data.descriptionColumn !== undefined) { sets.push('description_column = ?'); params.push(data.descriptionColumn); }
+    if (data.amountType !== undefined) { sets.push('amount_type = ?'); params.push(data.amountType); }
+    if (data.amountColumn !== undefined) { sets.push('amount_column = ?'); params.push(data.amountColumn); }
+    if (data.debitColumn !== undefined) { sets.push('debit_column = ?'); params.push(data.debitColumn); }
+    if (data.creditColumn !== undefined) { sets.push('credit_column = ?'); params.push(data.creditColumn); }
+    if (data.detectionFields !== undefined) { sets.push('detection_fields = ?'); params.push(data.detectionFields); }
+
+    if (sets.length === 0) return;
+    params.push(id);
+
+    const db = getDatabase();
+    db.run(`UPDATE bank_configs SET ${sets.join(', ')} WHERE id = ?`, params);
+    saveDatabase();
+  });
+
+  ipcMain.handle('bankConfigs:delete', (_event, id: string) => {
+    const db = getDatabase();
+    db.run('DELETE FROM bank_configs WHERE id = ?', [id]);
     saveDatabase();
   });
 }
