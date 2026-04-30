@@ -260,7 +260,6 @@ async function applyRulesToPreview() {
   rules.sort((a, b) => b.priority - a.priority)
 
   for (const txn of parsedTransactions.value) {
-    if (txn.category) continue
     for (const rule of rules) {
       if (txn.description.toLowerCase().includes(rule.pattern.toLowerCase())) {
         txn.category = rule.category

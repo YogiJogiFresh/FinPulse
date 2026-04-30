@@ -103,7 +103,7 @@
     </DataTable>
 
     <!-- Pagination -->
-    <div v-if="totalCount > pageSize" class="pagination-bar">
+    <div v-if="transactions.length > 0" class="pagination-bar">
       <span class="pagination-info">Showing {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalCount) }} of {{ totalCount }}</span>
       <div class="pagination-controls">
         <Select v-model="pageSize" :options="pageSizeOptions" optionLabel="label" optionValue="value" class="page-size-select" @change="onPageSizeChange" />
@@ -166,9 +166,9 @@ import CategoryRulesDialog from '@/components/transactions/CategoryRulesDialog.v
 import {
   getTransactions, getTransactionCount, updateTransaction,
   deleteTransaction, bulkCategorizeTransactions, getTransactionBanks,
-  getBudgetCategories, importTransactions
+  getBudgetCategories, importTransactions, getBankConfigs
 } from '@/services/api'
-import type { Transaction, BudgetCategory } from '@/types'
+import type { Transaction, BudgetCategory, BankConfig } from '@/types'
 
 const transactions = ref<Transaction[]>([])
 const selectedTransactions = ref<Transaction[]>([])
@@ -192,6 +192,7 @@ const quickDateActive = ref<number | null>(null)
 
 const budgetCategories = ref<BudgetCategory[]>([])
 const bankList = ref<Array<{ bank: string; accountLabel: string }>>([])
+const bankConfigs = ref<BankConfig[]>([])
 
 const showImportDialog = ref(false)
 const showRulesDialog = ref(false)
@@ -208,10 +209,19 @@ const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value))
 
 const customColumnNames = computed(() => {
   const keys = new Set<string>()
+  // From transaction data
   for (const txn of transactions.value) {
     if (txn.customData && typeof txn.customData === 'object') {
       for (const k of Object.keys(txn.customData)) {
         keys.add(k)
+      }
+    }
+  }
+  // From bank configs (ensures new mappings appear even before re-import)
+  for (const config of bankConfigs.value) {
+    if (config.customColumns) {
+      for (const col of config.customColumns) {
+        if (col.displayName) keys.add(col.displayName)
       }
     }
   }
@@ -433,6 +443,7 @@ async function loadCategories() {
 onMounted(async () => {
   await loadCategories()
   await loadBanks()
+  bankConfigs.value = await getBankConfigs()
   await loadTransactions()
 })
 </script>
@@ -572,7 +583,7 @@ onMounted(async () => {
 }
 
 .page-size-select {
-  width: 5rem;
+  width: 5.5rem;
 }
 
 .page-number {
