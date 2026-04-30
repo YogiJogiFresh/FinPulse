@@ -147,6 +147,8 @@ export function registerTransactionHandlers(): void {
 
         const id = generateId();
         const customDataJson = JSON.stringify(txn.customData || {});
+        // Use Category from customData if available and no explicit category set
+        const category = txn.category || txn.customData?.['Category'] || '';
         db.run(
           `INSERT INTO transactions (id, date, post_date, description, original_description, amount, category, bank, account_label, import_batch, custom_data)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -157,7 +159,7 @@ export function registerTransactionHandlers(): void {
             txn.description,
             txn.description,
             txn.amount,
-            txn.category || '',
+            category,
             data.bank,
             data.accountLabel,
             batchId,
@@ -168,6 +170,26 @@ export function registerTransactionHandlers(): void {
       }
 
       saveDatabase();
+
+      // Auto-create budget categories from custom "Category" column values
+      const categoryValues = new Set<string>();
+      for (const txn of data.transactions) {
+        const cat = txn.customData?.['Category'] || txn.category || '';
+        if (cat) categoryValues.add(cat);
+      }
+      if (categoryValues.size > 0) {
+        for (const catName of categoryValues) {
+          const exists = query('SELECT id FROM budget_categories WHERE name = ?', [catName]);
+          if (exists.length === 0) {
+            db.run(
+              'INSERT INTO budget_categories (id, name, budget_limit, color) VALUES (?, ?, ?, ?)',
+              [generateId(), catName, 0, '#64748b']
+            );
+          }
+        }
+        saveDatabase();
+      }
+
       return { imported, skipped, batchId };
     } catch (err: any) {
       throw new Error(err.message || 'Import failed');

@@ -290,12 +290,12 @@ export function getBankConfigs(): Promise<BankConfig[]> {
   return window.api.getBankConfigs()
 }
 
-export function createBankConfig(data: { name: string; dateColumn: string; postDateColumn?: string; descriptionColumn: string; amountType: string; amountColumn?: string; debitColumn?: string; creditColumn?: string; detectionFields: string }): Promise<{ id: string }> {
-  return window.api.createBankConfig(data)
+export function createBankConfig(data: { name: string; dateColumn?: string; postDateColumn?: string; descriptionColumn?: string; amountType?: string; amountColumn?: string; debitColumn?: string; creditColumn?: string; detectionFields?: string; customColumns?: { csvHeader: string; displayName: string }[] }): Promise<{ id: string }> {
+  return window.api.createBankConfig(JSON.parse(JSON.stringify(data)))
 }
 
-export function updateBankConfig(id: string, data: Partial<{ name: string; dateColumn: string; postDateColumn: string; descriptionColumn: string; amountType: string; amountColumn: string; debitColumn: string; creditColumn: string; detectionFields: string }>): Promise<void> {
-  return window.api.updateBankConfig(id, data)
+export function updateBankConfig(id: string, data: Partial<{ name: string; dateColumn: string; postDateColumn: string; descriptionColumn: string; amountType: string; amountColumn: string; debitColumn: string; creditColumn: string; detectionFields: string; customColumns: { csvHeader: string; displayName: string }[] }>): Promise<void> {
+  return window.api.updateBankConfig(id, JSON.parse(JSON.stringify(data)))
 }
 
 export function deleteBankConfig(id: string): Promise<void> {

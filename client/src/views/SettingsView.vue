@@ -231,6 +231,7 @@ const clearOptions = [
   { key: 'income', label: 'Income', description: 'Delete all income sources' },
   { key: 'debts', label: 'Debts', description: 'Delete all debt records' },
   { key: 'budget', label: 'Budget', description: 'Delete all budget records' },
+  { key: 'transactions', label: 'Transactions', description: 'Delete all transactions and category rules' },
   { key: 'history', label: 'Account History', description: 'Delete all account history data' },
   { key: 'properties', label: 'Properties', description: 'Delete all properties, details, expenses, and contractors' },
 ]
