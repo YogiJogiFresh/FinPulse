@@ -170,12 +170,12 @@ const chartOptions = computed(() => ({
   plugins: {
     legend: {
       labels: {
-        color: '#e2e8f0',
+        color: '#ffffff',
         generateLabels: () => [
-          { text: 'Budget', fillStyle: 'rgba(96, 165, 250, 0.6)', strokeStyle: '#60a5fa', lineWidth: 1 },
-          { text: 'Under Budget', fillStyle: '#4ade80', strokeStyle: '#4ade80', lineWidth: 1 },
-          { text: 'Near Budget (>80%)', fillStyle: '#fbbf24', strokeStyle: '#fbbf24', lineWidth: 1 },
-          { text: 'Over Budget', fillStyle: '#f87171', strokeStyle: '#f87171', lineWidth: 1 }
+          { text: 'Budget', fillStyle: 'rgba(96, 165, 250, 0.6)', strokeStyle: '#60a5fa', lineWidth: 1, fontColor: '#ffffff' },
+          { text: 'Under Budget', fillStyle: '#4ade80', strokeStyle: '#4ade80', lineWidth: 1, fontColor: '#ffffff' },
+          { text: 'Near Budget (>80%)', fillStyle: '#fbbf24', strokeStyle: '#fbbf24', lineWidth: 1, fontColor: '#ffffff' },
+          { text: 'Over Budget', fillStyle: '#f87171', strokeStyle: '#f87171', lineWidth: 1, fontColor: '#ffffff' }
         ]
       }
     },
