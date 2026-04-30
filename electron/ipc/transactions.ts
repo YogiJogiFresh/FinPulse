@@ -29,85 +29,89 @@ export function registerTransactionHandlers(): void {
 
   // ── Parse CSV with bank config ──
   ipcMain.handle('transactions:parseCSVWithConfig', (_event, csvContent: string, bankId?: string): ConfigParseResult => {
-    // Load bank configs from DB
-    const rows = query('SELECT * FROM bank_configs ORDER BY name');
-    const configs: BankConfigForParser[] = rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      dateColumn: row.date_column,
-      postDateColumn: row.post_date_column,
-      descriptionColumn: row.description_column,
-      amountType: row.amount_type as 'signed' | 'split',
-      amountColumn: row.amount_column,
-      debitColumn: row.debit_column,
-      creditColumn: row.credit_column,
-      detectionFields: row.detection_fields,
-      customColumns: (() => { try { return JSON.parse(row.custom_columns || '[]'); } catch { return []; } })()
-    }));
+    try {
+      // Load bank configs from DB
+      const rows = query('SELECT * FROM bank_configs ORDER BY name');
+      const configs: BankConfigForParser[] = rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        dateColumn: row.date_column,
+        postDateColumn: row.post_date_column,
+        descriptionColumn: row.description_column,
+        amountType: row.amount_type as 'signed' | 'split',
+        amountColumn: row.amount_column,
+        debitColumn: row.debit_column,
+        creditColumn: row.credit_column,
+        detectionFields: row.detection_fields,
+        customColumns: (() => { try { return JSON.parse(row.custom_columns || '[]'); } catch { return []; } })()
+      }));
 
-    // Always use legacy parser for standard fields (date, description, amount)
-    const legacyResult = parseCSV(csvContent);
+      // Always use legacy parser for standard fields (date, description, amount)
+      const legacyResult = parseCSV(csvContent);
 
-    let config: BankConfigForParser | null = null;
-    if (bankId) {
-      config = configs.find(c => c.id === bankId) || null;
-    } else {
-      config = detectBankFromConfigs(csvContent, configs);
-    }
-
-    // If no bank config or no custom columns, return legacy result as-is
-    if (!config || !config.customColumns || config.customColumns.length === 0) {
-      return {
-        bank: config?.name || legacyResult.bank,
-        transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
-        errors: legacyResult.errors
-      };
-    }
-
-    // Overlay custom column extraction on top of legacy-parsed transactions
-    const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
-    const warnings: string[] = [...legacyResult.errors];
-
-    if (lines.length < 2) {
-      return {
-        bank: config.name,
-        transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
-        errors: warnings
-      };
-    }
-
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const headerLookup = (colName: string): number => {
-      const normalized = colName.toLowerCase().replace(/[^a-z0-9]/g, '');
-      return headers.findIndex(h => h.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized);
-    };
-
-    // Map custom columns, warn if missing but don't fail
-    const customColIndices: { displayName: string; idx: number }[] = [];
-    for (const col of config.customColumns) {
-      if (!col.csvHeader || !col.displayName) continue;
-      const idx = headerLookup(col.csvHeader);
-      if (idx === -1) {
-        warnings.push(`Warning: Custom column "${col.csvHeader}" not found in CSV. It will be skipped.`);
+      let config: BankConfigForParser | null = null;
+      if (bankId) {
+        config = configs.find(c => c.id === bankId) || null;
       } else {
-        customColIndices.push({ displayName: col.displayName, idx });
+        config = detectBankFromConfigs(csvContent, configs);
       }
-    }
 
-    // Parse data rows and attach custom data to each legacy transaction
-    const dataRows = lines.slice(1);
-    const transactions: ParsedTransactionWithCustom[] = legacyResult.transactions.map((txn, i) => {
-      const customData: Record<string, string> = {};
-      if (i < dataRows.length) {
-        const row = parseCSVLine(dataRows[i]);
-        for (const col of customColIndices) {
-          customData[col.displayName] = (row[col.idx] || '').trim();
+      // If no bank config or no custom columns, return legacy result as-is
+      if (!config || !config.customColumns || config.customColumns.length === 0) {
+        return {
+          bank: config?.name || legacyResult.bank,
+          transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
+          errors: legacyResult.errors
+        };
+      }
+
+      // Overlay custom column extraction on top of legacy-parsed transactions
+      const lines = csvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
+      const warnings: string[] = [...legacyResult.errors];
+
+      if (lines.length < 2) {
+        return {
+          bank: config.name,
+          transactions: legacyResult.transactions.map(t => ({ ...t, customData: {} })),
+          errors: warnings
+        };
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const headerLookup = (colName: string): number => {
+        const normalized = colName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return headers.findIndex(h => h.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized);
+      };
+
+      // Map custom columns, warn if missing but don't fail
+      const customColIndices: { displayName: string; idx: number }[] = [];
+      for (const col of config.customColumns) {
+        if (!col.csvHeader || !col.displayName) continue;
+        const idx = headerLookup(col.csvHeader);
+        if (idx === -1) {
+          warnings.push(`Warning: Custom column "${col.csvHeader}" not found in CSV. It will be skipped.`);
+        } else {
+          customColIndices.push({ displayName: col.displayName, idx });
         }
       }
-      return { ...txn, customData };
-    });
 
-    return { bank: config.name, transactions, errors: warnings };
+      // Parse data rows and attach custom data to each legacy transaction
+      const dataRows = lines.slice(1);
+      const transactions: ParsedTransactionWithCustom[] = legacyResult.transactions.map((txn, i) => {
+        const customData: Record<string, string> = {};
+        if (i < dataRows.length) {
+          const row = parseCSVLine(dataRows[i]);
+          for (const col of customColIndices) {
+            customData[col.displayName] = (row[col.idx] || '').trim();
+          }
+        }
+        return { ...txn, customData };
+      });
+
+      return { bank: config.name, transactions, errors: warnings };
+    } catch (err: any) {
+      return { bank: 'unknown', transactions: [], errors: [err.message || 'Unknown parsing error'] };
+    }
   });
 
   // ── Import transactions ──
@@ -123,47 +127,51 @@ export function registerTransactionHandlers(): void {
     bank: string;
     accountLabel: string;
   }) => {
-    const db = getDatabase();
-    const batchId = generateId();
-    let imported = 0;
-    let skipped = 0;
+    try {
+      const db = getDatabase();
+      const batchId = generateId();
+      let imported = 0;
+      let skipped = 0;
 
-    for (const txn of data.transactions) {
-      // Duplicate detection: same date + description + amount
-      const existing = query(
-        'SELECT id FROM transactions WHERE date = ? AND description = ? AND amount = ?',
-        [txn.date, txn.description, txn.amount]
-      );
+      for (const txn of data.transactions) {
+        // Duplicate detection: same date + description + amount
+        const existing = query(
+          'SELECT id FROM transactions WHERE date = ? AND description = ? AND amount = ?',
+          [txn.date, txn.description, txn.amount]
+        );
 
-      if (existing.length > 0) {
-        skipped++;
-        continue;
+        if (existing.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        const id = generateId();
+        const customDataJson = JSON.stringify(txn.customData || {});
+        db.run(
+          `INSERT INTO transactions (id, date, post_date, description, original_description, amount, category, bank, account_label, import_batch, custom_data)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            txn.date,
+            txn.postDate || '',
+            txn.description,
+            txn.description,
+            txn.amount,
+            txn.category || '',
+            data.bank,
+            data.accountLabel,
+            batchId,
+            customDataJson
+          ]
+        );
+        imported++;
       }
 
-      const id = generateId();
-      const customDataJson = JSON.stringify(txn.customData || {});
-      db.run(
-        `INSERT INTO transactions (id, date, post_date, description, original_description, amount, category, bank, account_label, import_batch, custom_data)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          txn.date,
-          txn.postDate || '',
-          txn.description,
-          txn.description,
-          txn.amount,
-          txn.category || '',
-          data.bank,
-          data.accountLabel,
-          batchId,
-          customDataJson
-        ]
-      );
-      imported++;
+      saveDatabase();
+      return { imported, skipped, batchId };
+    } catch (err: any) {
+      throw new Error(err.message || 'Import failed');
     }
-
-    saveDatabase();
-    return { imported, skipped, batchId };
   });
 
   // ── Get all transactions (with filters) ──

@@ -223,8 +223,8 @@ export function parseTransactionCSV(csvContent: string) {
   return window.api.parseTransactionCSV(csvContent)
 }
 
-export function parseTransactionCSVWithConfig(csvContent: string, bankId?: string) {
-  return window.api.parseTransactionCSVWithConfig(csvContent, bankId)
+export function parseTransactionCSVWithConfig(csvContent: string, bankId?: string | null) {
+  return window.api.parseTransactionCSVWithConfig(csvContent, bankId || '')
 }
 
 export function importTransactions(data: { transactions: Array<{ date: string; postDate?: string; description: string; amount: number; category?: string; customData?: Record<string, string> }>; bank: string; accountLabel: string }): Promise<TransactionImportResult> {

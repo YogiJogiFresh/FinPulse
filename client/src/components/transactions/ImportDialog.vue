@@ -206,7 +206,7 @@ async function onFileSelected(event: Event) {
 
   try {
     const content = await file.text()
-    const bankId = selectedBankId.value || undefined
+    const bankId = selectedBankId.value || null
     const result = await parseTransactionCSVWithConfig(content, bankId)
 
     if (result.transactions.length === 0) {
