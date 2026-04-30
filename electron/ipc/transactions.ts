@@ -437,4 +437,14 @@ export function registerTransactionHandlers(): void {
       ORDER BY total DESC
     `, [startDate, endDate]).map(formatRow);
   });
+
+  ipcMain.handle('transactions:getDateRangeSummary', (_event, startDate: string, endDate: string) => {
+    return query(`
+      SELECT category, SUM(amount) as total, COUNT(*) as count
+      FROM transactions
+      WHERE date >= ? AND date <= ? AND amount > 0 AND category != ''
+      GROUP BY category
+      ORDER BY total DESC
+    `, [startDate, endDate]).map(formatRow);
+  });
 }

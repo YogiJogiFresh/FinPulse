@@ -4,6 +4,25 @@
       <Button label="Add Category" icon="pi pi-plus" @click="openCreate" />
     </div>
 
+    <!-- Date Range Filters -->
+    <div class="date-filters">
+      <div class="quick-filters">
+        <Button label="1 Month" size="small" :severity="activeQuickFilter === '1m' ? 'primary' : 'secondary'" @click="setQuickFilter('1m')" />
+        <Button label="3 Months" size="small" :severity="activeQuickFilter === '3m' ? 'primary' : 'secondary'" @click="setQuickFilter('3m')" />
+        <Button label="1 Year" size="small" :severity="activeQuickFilter === '1y' ? 'primary' : 'secondary'" @click="setQuickFilter('1y')" />
+      </div>
+      <div class="date-range-pickers">
+        <DatePicker v-model="startDate" placeholder="Start Date" dateFormat="yy-mm-dd" showIcon @date-select="onDateChange" />
+        <span class="date-separator">to</span>
+        <DatePicker v-model="endDate" placeholder="End Date" dateFormat="yy-mm-dd" showIcon @date-select="onDateChange" />
+      </div>
+    </div>
+
+    <!-- Budget vs Actual Chart -->
+    <div v-if="categories.length > 0" class="chart-container">
+      <Bar :data="chartData" :options="chartOptions" />
+    </div>
+
     <DataTable :value="categories" :loading="loading" stripedRows dataKey="_id" paginator :rows="15" v-if="categories.length > 0 || loading">
       <Column header="Color" style="width: 8%">
         <template #body="{ data }">
@@ -51,20 +70,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { BudgetCategory, MonthlyCategorySummary } from '@/types'
-import { getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory, getTransactionMonthlySummary } from '@/services/api'
+import { getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory, getTransactionDateRangeSummary } from '@/services/api'
 import BudgetCategoryForm from '@/components/budget/BudgetCategoryForm.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import DatePicker from 'primevue/datepicker'
+import { Bar } from 'vue-chartjs'
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const categories = ref<BudgetCategory[]>([])
 const dialogVisible = ref(false)
 const editingCategory = ref<BudgetCategory | null>(null)
 const loading = ref(true)
 const monthlySummary = ref<MonthlyCategorySummary[]>([])
+
+const activeQuickFilter = ref<'1m' | '3m' | '1y'>('1m')
+const startDate = ref<Date>(getMonthsAgo(1))
+const endDate = ref<Date>(new Date())
+
+function getMonthsAgo(months: number): Date {
+  const d = new Date()
+  d.setMonth(d.getMonth() - months)
+  return d
+}
+
+function formatDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function setQuickFilter(filter: '1m' | '3m' | '1y') {
+  activeQuickFilter.value = filter
+  endDate.value = new Date()
+  if (filter === '1m') startDate.value = getMonthsAgo(1)
+  else if (filter === '3m') startDate.value = getMonthsAgo(3)
+  else startDate.value = getMonthsAgo(12)
+  loadBudget()
+}
+
+function onDateChange() {
+  activeQuickFilter.value = '' as any
+  loadBudget()
+}
 
 function getActualSpend(categoryName: string): number {
   const match = monthlySummary.value.find(s => s.category === categoryName)
@@ -78,13 +130,76 @@ function getSpendStatus(categoryName: string, limit: number): 'under' | 'near' |
   return 'under'
 }
 
+function getBarColor(actual: number, limit: number): string {
+  if (actual > limit) return '#f87171'
+  if (actual > limit * 0.8) return '#fbbf24'
+  return '#4ade80'
+}
+
+const chartData = computed(() => {
+  const labels = categories.value.map(c => c.name)
+  const budgetData = categories.value.map(c => c.monthlyLimit)
+  const actualData = categories.value.map(c => getActualSpend(c.name))
+  const actualColors = categories.value.map(c => getBarColor(getActualSpend(c.name), c.monthlyLimit))
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Budget',
+        data: budgetData,
+        backgroundColor: 'rgba(96, 165, 250, 0.6)',
+        borderColor: '#60a5fa',
+        borderWidth: 1
+      },
+      {
+        label: 'Actual',
+        data: actualData,
+        backgroundColor: actualColors,
+        borderColor: actualColors,
+        borderWidth: 1
+      }
+    ]
+  }
+})
+
+const chartOptions = computed(() => ({
+  indexAxis: 'y' as const,
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      labels: { color: '#e2e8f0' }
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: any) => {
+          const value = context.raw as number
+          return `${context.dataset.label}: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)}`
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      ticks: { color: '#94a3b8', callback: (value: any) => '$' + value },
+      grid: { color: 'rgba(148, 163, 184, 0.1)' }
+    },
+    y: {
+      ticks: { color: '#e2e8f0' },
+      grid: { color: 'rgba(148, 163, 184, 0.1)' }
+    }
+  }
+}))
+
 async function loadBudget() {
   loading.value = true
   try {
-    const now = new Date()
+    const start = formatDateStr(startDate.value)
+    const end = formatDateStr(endDate.value)
     const [cats, summary] = await Promise.all([
       getBudgetCategories(),
-      getTransactionMonthlySummary(now.getFullYear(), now.getMonth() + 1)
+      getTransactionDateRangeSummary(start, end)
     ])
     categories.value = cats
     monthlySummary.value = summary
@@ -135,6 +250,36 @@ onMounted(loadBudget)
 .view-toolbar {
   display: flex;
   justify-content: flex-start;
+}
+
+.date-filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.quick-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.date-range-pickers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-separator {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.chart-container {
+  height: 300px;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 8px;
+  padding: 16px;
 }
 
 .color-swatch {

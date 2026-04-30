@@ -74,6 +74,7 @@ interface Window {
     applyTransactionRules(): Promise<{ updated: number }>
     getTransactionBanks(): Promise<Array<{ bank: string; accountLabel: string }>>
     getTransactionMonthlySummary(year: number, month: number): Promise<import('./types').MonthlyCategorySummary[]>
+    getTransactionDateRangeSummary(startDate: string, endDate: string): Promise<import('./types').MonthlyCategorySummary[]>
     // Category Rules
     getCategoryRules(): Promise<import('./types').CategoryRule[]>
     createCategoryRule(data: { pattern: string; category: string; priority?: number }): Promise<{ id: string }>

@@ -83,6 +83,7 @@ contextBridge.exposeInMainWorld('api', {
   applyTransactionRules: () => ipcRenderer.invoke('transactions:applyRules'),
   getTransactionBanks: () => ipcRenderer.invoke('transactions:getBanks'),
   getTransactionMonthlySummary: (year: number, month: number) => ipcRenderer.invoke('transactions:getMonthlySummary', year, month),
+  getTransactionDateRangeSummary: (startDate: string, endDate: string) => ipcRenderer.invoke('transactions:getDateRangeSummary', startDate, endDate),
 
   // Category Rules
   getCategoryRules: () => ipcRenderer.invoke('categoryRules:getAll'),

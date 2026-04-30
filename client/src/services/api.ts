@@ -260,6 +260,10 @@ export function getTransactionMonthlySummary(year: number, month: number): Promi
   return window.api.getTransactionMonthlySummary(year, month)
 }
 
+export function getTransactionDateRangeSummary(startDate: string, endDate: string): Promise<MonthlyCategorySummary[]> {
+  return window.api.getTransactionDateRangeSummary(startDate, endDate)
+}
+
 // Category Rules
 export function getCategoryRules(): Promise<CategoryRule[]> {
   return window.api.getCategoryRules()

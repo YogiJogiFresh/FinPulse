@@ -117,7 +117,7 @@
     <ImportDialog v-model:visible="showImportDialog" :categories="budgetCategories" @imported="onImported" />
 
     <!-- Rules Dialog -->
-    <CategoryRulesDialog v-model:visible="showRulesDialog" :categories="budgetCategories" />
+    <CategoryRulesDialog v-model:visible="showRulesDialog" :categories="budgetCategories" @rulesApplied="loadTransactions" />
 
     <!-- Manual Add Dialog -->
     <Dialog v-model:visible="showAddDialog" header="Add Transaction" modal :style="{ width: '90vw', maxWidth: '32rem' }">

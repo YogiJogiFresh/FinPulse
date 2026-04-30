@@ -81,8 +81,9 @@ const props = defineProps<{
   categories: BudgetCategory[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
+  (e: 'rulesApplied'): void
 }>()
 
 const rules = ref<CategoryRule[]>([])
@@ -141,7 +142,9 @@ async function autoGenerate() {
 async function applyRulesToAll() {
   applying.value = true
   try {
-    await applyTransactionRules()
+    const result = await applyTransactionRules()
+    emit('rulesApplied')
+    alert(`Updated ${result.updated} transaction(s) with category rules.`)
   } finally {
     applying.value = false
   }
@@ -191,12 +194,14 @@ async function applyRulesToAll() {
 }
 
 .priority-input {
-  width: 5.5rem;
+  width: 6rem;
+  min-width: 6rem;
   flex-shrink: 0;
 }
 
 .add-rule-btn {
   flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .rules-table {
