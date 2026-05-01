@@ -73,6 +73,10 @@
               <span>State tax ({{ stateTaxRate }}%)</span>
               <span class="estimate-deduction">-{{ formatCurrency(form.yearlySalary * stateTaxRate / 100 / 12) }}/mo</span>
             </div>
+            <div class="estimate-line">
+              <span>FICA ({{ ficaRate }}%)</span>
+              <span class="estimate-deduction">-{{ formatCurrency(form.yearlySalary * ficaRate / 100 / 12) }}/mo</span>
+            </div>
             <div class="estimate-line estimate-total">
               <span>Estimated take-home</span>
               <span class="estimate-value">{{ formatCurrency(estimatedTakeHome) }}/mo</span>
@@ -129,7 +133,8 @@ const loading = ref(true)
 const dialogVisible = ref(false)
 const editingSource = ref<IncomeSource | null>(null)
 const federalTaxRate = ref(22)
-const stateTaxRate = ref(5)
+const stateTaxRate = ref(5.75)
+const ficaRate = ref(7.65)
 
 const form = reactive({
   name: '',
@@ -139,7 +144,7 @@ const form = reactive({
 })
 
 const estimatedTakeHome = computed(() => {
-  const totalTaxRate = (federalTaxRate.value + stateTaxRate.value) / 100
+  const totalTaxRate = (federalTaxRate.value + stateTaxRate.value + ficaRate.value) / 100
   return form.yearlySalary * (1 - totalTaxRate) / 12
 })
 
@@ -211,7 +216,8 @@ async function loadSettings() {
   try {
     const settings = await getSettings()
     federalTaxRate.value = parseFloat(settings.federal_tax_rate || '22')
-    stateTaxRate.value = parseFloat(settings.state_tax_rate || '5')
+    stateTaxRate.value = parseFloat(settings.state_tax_rate || '5.75')
+    ficaRate.value = parseFloat(settings.fica_rate || '7.65')
   } catch {
     // defaults
   }

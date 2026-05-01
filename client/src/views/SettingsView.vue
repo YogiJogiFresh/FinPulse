@@ -114,7 +114,7 @@
       <div class="setting-row">
         <div class="setting-info">
           <label>State Tax Rate</label>
-          <small>Your effective state income tax rate</small>
+          <small>Your effective state income tax rate (Virginia default: 5.75%)</small>
         </div>
         <div class="setting-input-group">
           <input
@@ -129,11 +129,29 @@
         </div>
       </div>
 
+      <div class="setting-row">
+        <div class="setting-info">
+          <label>FICA (Social Security + Medicare)</label>
+          <small>Payroll tax: Social Security (6.2%) + Medicare (1.45%)</small>
+        </div>
+        <div class="setting-input-group">
+          <input
+            type="number"
+            v-model.number="ficaRate"
+            step="0.05"
+            min="0"
+            max="15"
+            class="setting-input"
+          />
+          <span class="input-suffix">%</span>
+        </div>
+      </div>
+
       <div class="setting-row total-row">
         <div class="setting-info">
           <label>Total Effective Tax Rate</label>
         </div>
-        <span class="total-rate">{{ (federalTaxRate + stateTaxRate).toFixed(1) }}%</span>
+        <span class="total-rate">{{ (federalTaxRate + stateTaxRate + ficaRate).toFixed(1) }}%</span>
       </div>
 
       <div class="save-row">
@@ -218,7 +236,8 @@ import { useToast } from 'primevue/usetoast'
 const toast = useToast()
 const router = useRouter()
 const federalTaxRate = ref(22)
-const stateTaxRate = ref(5)
+const stateTaxRate = ref(5.75)
+const ficaRate = ref(7.65)
 const taxDirty = ref(false)
 const taxSaved = ref(false)
 const confirmingClear = ref(false)
@@ -244,20 +263,23 @@ async function doClearPage(page: string) {
 }
 
 let originalFederal = 22
-let originalState = 5
+let originalState = 5.75
+let originalFica = 7.65
 
-watch([federalTaxRate, stateTaxRate], () => {
-  taxDirty.value = federalTaxRate.value !== originalFederal || stateTaxRate.value !== originalState
+watch([federalTaxRate, stateTaxRate, ficaRate], () => {
+  taxDirty.value = federalTaxRate.value !== originalFederal || stateTaxRate.value !== originalState || ficaRate.value !== originalFica
   taxSaved.value = false
 })
 
 async function saveTaxSettings() {
   await setSettingsBatch({
     federal_tax_rate: String(federalTaxRate.value),
-    state_tax_rate: String(stateTaxRate.value)
+    state_tax_rate: String(stateTaxRate.value),
+    fica_rate: String(ficaRate.value)
   })
   originalFederal = federalTaxRate.value
   originalState = stateTaxRate.value
+  originalFica = ficaRate.value
   taxDirty.value = false
   taxSaved.value = true
 }
@@ -343,9 +365,11 @@ onMounted(async () => {
   try {
     const [settings, version] = await Promise.all([getSettings(), getAppVersion()])
     federalTaxRate.value = parseFloat(settings.federal_tax_rate || '22')
-    stateTaxRate.value = parseFloat(settings.state_tax_rate || '5')
+    stateTaxRate.value = parseFloat(settings.state_tax_rate || '5.75')
+    ficaRate.value = parseFloat(settings.fica_rate || '7.65')
     originalFederal = federalTaxRate.value
     originalState = stateTaxRate.value
+    originalFica = ficaRate.value
     appVersion.value = version
     await loadBankConfigs()
   } catch {
