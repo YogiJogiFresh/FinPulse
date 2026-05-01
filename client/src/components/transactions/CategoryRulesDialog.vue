@@ -26,6 +26,7 @@
         v-tooltip.top="'Categories are added from the Budget page'"
       />
       <InputNumber v-model="newPriority" placeholder="Priority" :min="0" :max="100" class="priority-input" v-tooltip.top="'Higher number = higher priority (checked first)'" />
+
       <Button icon="pi pi-plus" @click="addRule" :disabled="!newPattern || !newCategory" class="add-rule-btn" />
     </div>
 
@@ -180,28 +181,24 @@ async function applyRulesToAll() {
   gap: 8px;
   align-items: center;
   margin-bottom: 16px;
-  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
 .pattern-input {
-  flex: 2;
-  min-width: 8rem;
+  flex: 1;
+  min-width: 5rem;
 }
 
 .category-select {
-  flex: 1.5;
-  min-width: 8rem;
+  flex: 1;
+  min-width: 5rem;
 }
 
 .priority-input {
-  width: 6rem;
-  min-width: 6rem;
-  flex-shrink: 0;
 }
 
 .add-rule-btn {
-  flex-shrink: 0;
-  margin-left: 4px;
+
 }
 
 .rules-table {

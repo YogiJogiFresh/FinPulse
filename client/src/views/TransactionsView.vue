@@ -1,7 +1,6 @@
 <template>
   <div class="transactions-page">
     <div class="page-header">
-      <h1>Transactions</h1>
       <div class="header-actions">
         <Button label="Add Transaction" icon="pi pi-plus" severity="success" @click="openManualAdd" />
         <Button label="Import CSV" icon="pi pi-upload" @click="showImportDialog = true" />
@@ -455,8 +454,8 @@ onMounted(async () => {
 
 .page-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex;
+  justify-content: flex-end;
   margin-bottom: 20px;
 }
 
