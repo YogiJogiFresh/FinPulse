@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 
 let db: Database | null = null;
+let databaseSavesSuspended = false;
 
 export async function initDatabase(): Promise<Database> {
   const SQL = await initSqlJs({
@@ -39,6 +40,26 @@ export async function initDatabase(): Promise<Database> {
     )
   `);
 
+  const accountMetadataColumns = [
+    "source TEXT NOT NULL DEFAULT 'manual'",
+    "institution_name TEXT NOT NULL DEFAULT ''",
+    "plaid_account_id TEXT NOT NULL DEFAULT ''",
+    "plaid_type TEXT NOT NULL DEFAULT ''",
+    "plaid_subtype TEXT NOT NULL DEFAULT ''",
+    "mask TEXT NOT NULL DEFAULT ''",
+    "credit_limit REAL",
+    "available_credit REAL",
+    "is_liability INTEGER NOT NULL DEFAULT 0",
+    "liability_type TEXT NOT NULL DEFAULT ''"
+  ];
+  for (const column of accountMetadataColumns) {
+    try {
+      db.run(`ALTER TABLE accounts ADD COLUMN ${column}`);
+    } catch {
+      // Column already exists
+    }
+  }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS budget_categories (
       id TEXT PRIMARY KEY,
@@ -61,6 +82,42 @@ export async function initDatabase(): Promise<Database> {
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  try {
+    db.run("ALTER TABLE debts ADD COLUMN linked_account_id TEXT");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.run("ALTER TABLE debts ADD COLUMN payment_strategy TEXT NOT NULL DEFAULT 'fixed'");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.run('ALTER TABLE debts ADD COLUMN statement_balance REAL');
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.run('ALTER TABLE debts ADD COLUMN statement_balance_as_of TEXT');
+  } catch {
+    // Column already exists
+  }
+  db.run(`
+    UPDATE debts SET payment_strategy = 'pay_in_full'
+    WHERE type = 'credit_card' AND payment_strategy = 'fixed'
+  `);
+  db.run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_debts_linked_account
+    ON debts(linked_account_id)
+    WHERE linked_account_id IS NOT NULL AND linked_account_id != ''
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS liability_match_ignores (
+      account_id TEXT NOT NULL,
+      debt_id TEXT NOT NULL,
+      PRIMARY KEY (account_id, debt_id)
     )
   `);
 
@@ -94,13 +151,37 @@ export async function initDatabase(): Promise<Database> {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS app_notifications (
+      id TEXT PRIMARY KEY,
+      severity TEXT NOT NULL CHECK(severity IN ('success', 'info', 'warn', 'error')),
+      summary TEXT NOT NULL,
+      detail TEXT NOT NULL DEFAULT '',
+      expanded_detail TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT 'app',
+      created_at TEXT NOT NULL,
+      read_at TEXT
+    )
+  `);
+  try {
+    db.run("ALTER TABLE app_notifications ADD COLUMN expanded_detail TEXT NOT NULL DEFAULT ''");
+  } catch { /* Column already exists */ }
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_app_notifications_created
+    ON app_notifications(created_at DESC)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_app_notifications_unread
+    ON app_notifications(read_at)
+    WHERE read_at IS NULL
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS account_history (
       id TEXT PRIMARY KEY,
       account_name TEXT NOT NULL,
       date TEXT NOT NULL,
       value REAL NOT NULL DEFAULT 0,
-      tag TEXT NOT NULL DEFAULT '',
-      UNIQUE(account_name, date)
+      tag TEXT NOT NULL DEFAULT ''
     )
   `);
 
@@ -111,10 +192,94 @@ export async function initDatabase(): Promise<Database> {
     // Column already exists
   }
 
+  try {
+    db.run("ALTER TABLE account_history ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.run("ALTER TABLE account_history ADD COLUMN source_account_id TEXT NOT NULL DEFAULT ''");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.run('ALTER TABLE account_history ADD COLUMN balance_effect REAL NOT NULL DEFAULT 1');
+  } catch {
+    // Column already exists
+  }
+
+  const historySchema = db.exec(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'account_history'"
+  );
+  const historyColumns = db.exec('PRAGMA table_info(account_history)');
+  const historyColumnNames = historyColumns[0]?.values.map(row => String(row[1])) || [];
+  const needsHistoryRebuild =
+    String(historySchema[0]?.values[0]?.[0] || '').includes('UNIQUE(account_name, date)') ||
+    !historyColumnNames.includes('captured_at') ||
+    !historyColumnNames.includes('sync_run_id') ||
+    !historyColumnNames.includes('sync_trigger');
+
+  if (needsHistoryRebuild) {
+    db.run('ALTER TABLE account_history RENAME TO account_history_legacy');
+    db.run(`
+      CREATE TABLE account_history (
+        id TEXT PRIMARY KEY,
+        account_name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        value REAL NOT NULL DEFAULT 0,
+        tag TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT 'manual',
+        source_account_id TEXT NOT NULL DEFAULT '',
+        balance_effect REAL NOT NULL DEFAULT 1,
+        captured_at TEXT NOT NULL DEFAULT (datetime('now')),
+        sync_run_id TEXT NOT NULL DEFAULT '',
+        sync_trigger TEXT NOT NULL DEFAULT 'manual'
+      )
+    `);
+    db.run(`
+      INSERT INTO account_history (
+        id, account_name, date, value, tag, source, source_account_id, balance_effect,
+        captured_at, sync_run_id, sync_trigger
+      )
+      SELECT
+        id, account_name, date, value, tag, source, source_account_id, balance_effect,
+        substr(date, 7, 4) || '-' || substr(date, 1, 2) || '-' || substr(date, 4, 2) || 'T00:00:00',
+        '',
+        CASE WHEN source = 'plaid' THEN 'legacy' ELSE 'manual' END
+      FROM account_history_legacy
+    `);
+    db.run('DROP TABLE account_history_legacy');
+  }
+
+  db.run(`
+    UPDATE account_history
+    SET source = 'plaid', source_account_id = substr(tag, 7)
+    WHERE tag LIKE 'plaid:%' AND source_account_id = ''
+  `);
+
+  db.run('DROP INDEX IF EXISTS idx_account_history_plaid_month');
+  db.run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_account_history_plaid_day
+    ON account_history(source_account_id, date)
+    WHERE source = 'plaid' AND source_account_id != ''
+  `);
+  db.run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_account_history_manual_day
+    ON account_history(account_name, date)
+    WHERE source != 'plaid'
+  `);
+
   // Migrate: add 'retirement' to accounts type CHECK constraint
   try {
-    const rows = db.exec('SELECT id, name, type, balance, currency, created_at FROM accounts');
-    if (rows.length > 0) {
+    const schema = db.exec("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'accounts'");
+    const needsRebuild = schema.length > 0 && !String(schema[0].values[0][0]).includes("'retirement'");
+    if (needsRebuild) {
+      const rows = db.exec(`
+        SELECT id, name, type, balance, currency, created_at, updated_at, source,
+               institution_name, plaid_account_id, plaid_type, plaid_subtype, mask,
+               credit_limit, available_credit, is_liability, liability_type
+        FROM accounts
+      `);
       const existingRows = rows[0].values;
       db.run('DROP TABLE accounts');
       db.run(`
@@ -125,11 +290,28 @@ export async function initDatabase(): Promise<Database> {
           balance REAL NOT NULL DEFAULT 0,
           currency TEXT NOT NULL DEFAULT 'USD',
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          source TEXT NOT NULL DEFAULT 'manual',
+          institution_name TEXT NOT NULL DEFAULT '',
+          plaid_account_id TEXT NOT NULL DEFAULT '',
+          plaid_type TEXT NOT NULL DEFAULT '',
+          plaid_subtype TEXT NOT NULL DEFAULT '',
+          mask TEXT NOT NULL DEFAULT '',
+          credit_limit REAL,
+          available_credit REAL,
+          is_liability INTEGER NOT NULL DEFAULT 0,
+          liability_type TEXT NOT NULL DEFAULT ''
         )
       `);
       for (const row of existingRows) {
-        db.run('INSERT INTO accounts (id, name, type, balance, currency, created_at) VALUES (?, ?, ?, ?, ?, ?)', row as any[]);
+        db.run(
+          `INSERT INTO accounts (
+            id, name, type, balance, currency, created_at, updated_at, source,
+            institution_name, plaid_account_id, plaid_type, plaid_subtype, mask,
+            credit_limit, available_credit, is_liability, liability_type
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          row as any[]
+        );
       }
     }
   } catch {
@@ -249,6 +431,65 @@ export async function initDatabase(): Promise<Database> {
   db.run('CREATE INDEX IF NOT EXISTS idx_category_rules_priority ON category_rules(priority DESC)');
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS plaid_items (
+      item_id TEXT PRIMARY KEY,
+      institution_id TEXT NOT NULL DEFAULT '',
+      institution_name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_synced_at TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS plaid_accounts (
+      plaid_account_id TEXT PRIMARY KEY,
+      item_id TEXT NOT NULL REFERENCES plaid_items(item_id) ON DELETE CASCADE,
+      local_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      UNIQUE(local_account_id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS plaid_sync_state (
+      item_id TEXT PRIMARY KEY REFERENCES plaid_items(item_id) ON DELETE CASCADE,
+      cursor TEXT NOT NULL DEFAULT ''
+    )
+  `);
+
+  try {
+    db.run("ALTER TABLE transactions ADD COLUMN plaid_transaction_id TEXT");
+  } catch { /* Column already exists */ }
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_plaid_id ON transactions(plaid_transaction_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_plaid_accounts_item_id ON plaid_accounts(item_id)');
+  db.run(`
+    UPDATE accounts
+    SET source = 'plaid',
+        institution_name = COALESCE((
+          SELECT pi.institution_name
+          FROM plaid_accounts pa
+          JOIN plaid_items pi ON pi.item_id = pa.item_id
+          WHERE pa.local_account_id = accounts.id
+        ), institution_name),
+        plaid_account_id = COALESCE((
+          SELECT pa.plaid_account_id
+          FROM plaid_accounts pa
+          WHERE pa.local_account_id = accounts.id
+        ), plaid_account_id),
+        is_liability = CASE WHEN type = 'credit_card' THEN 1 ELSE is_liability END,
+        liability_type = CASE
+          WHEN type = 'credit_card' AND liability_type = '' THEN 'credit_card'
+          ELSE liability_type
+        END
+    WHERE id IN (SELECT local_account_id FROM plaid_accounts)
+  `);
+  db.run(`
+    UPDATE account_history
+    SET balance_effect = -1
+    WHERE source = 'plaid'
+      AND source_account_id IN (SELECT id FROM accounts WHERE is_liability = 1)
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS bank_configs (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -292,7 +533,10 @@ export async function initDatabase(): Promise<Database> {
   const defaults: [string, string][] = [
     ['theme', 'dark'],
     ['federal_tax_rate', '22'],
-    ['state_tax_rate', '5']
+    ['state_tax_rate', '5'],
+    ['plaid_auto_sync_first_enabled', 'true'],
+    ['plaid_auto_sync_last_enabled', 'true'],
+    ['plaid_auto_sync_time', '09:00']
   ];
   for (const [key, value] of defaults) {
     db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);
@@ -393,10 +637,14 @@ export function getDatabase(): Database {
 }
 
 export function saveDatabase(): void {
-  if (!db) return;
+  if (!db || databaseSavesSuspended) return;
   const dbPath = path.join(app.getPath('userData'), 'finpulse.db');
   const data = db.export();
   fs.writeFileSync(dbPath, Buffer.from(data));
+}
+
+export function setDatabaseSavesSuspended(suspended: boolean): void {
+  databaseSavesSuspended = suspended;
 }
 
 export function generateId(): string {

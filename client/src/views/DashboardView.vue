@@ -8,7 +8,7 @@
         </div>
         <div class="card-content">
           <span class="card-label">Net Worth</span>
-          <span class="card-value">{{ formatCurrency(totalBalance) }}</span>
+          <span class="card-value">{{ formatCurrency(netWorth) }}</span>
         </div>
       </div>
       <div class="summary-card">
@@ -25,8 +25,17 @@
           <i class="pi pi-credit-card"></i>
         </div>
         <div class="card-content">
-          <span class="card-label">Total Debt</span>
-          <span class="card-value text-expense">{{ formatCurrency(debtTotals.currentBalance) }}</span>
+          <span class="card-label">Credit Card Balances</span>
+          <span class="card-value text-expense">{{ formatCurrency(debtTotals.creditCardBalance) }}</span>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="card-icon" style="background-color: #fb923c">
+          <i class="pi pi-home"></i>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Loan Debt</span>
+          <span class="card-value text-expense">{{ formatCurrency(debtTotals.loanBalance) }}</span>
         </div>
       </div>
       <div class="summary-card">
@@ -42,7 +51,7 @@
       </div>
     </div>
     <div class="summary-cards" v-else>
-      <div class="summary-card" v-for="i in 4" :key="i">
+      <div class="summary-card" v-for="i in 5" :key="i">
         <Skeleton width="40px" height="40px" borderRadius="10px" />
         <div class="card-content">
           <Skeleton width="100px" height="14px" />
@@ -104,7 +113,7 @@
     <div class="charts-row" v-if="!loading">
       <div class="chart-card">
         <h3>Account Type Breakdown</h3>
-        <AccountTypePieChart :accounts="accounts" />
+        <AccountTypePieChart :accounts="assetAccounts" />
       </div>
       <div class="chart-card">
         <h3>Balance by Type</h3>
@@ -121,9 +130,9 @@
               <span class="budget-dot" style="background-color: transparent"></span>
               <span class="budget-total-text">Total</span>
             </div>
-            <span class="budget-line-amount budget-total-amount">{{ formatCurrency(totalBalance) }}</span>
+            <span class="budget-line-amount budget-total-amount">{{ formatCurrency(totalAssetBalance) }}</span>
           </div>
-          <div v-if="accounts.length === 0" class="empty-chart-msg">
+          <div v-if="assetAccounts.length === 0" class="empty-chart-msg">
             <span>Add accounts to see breakdown.</span>
           </div>
         </div>
@@ -179,14 +188,20 @@ import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 import Skeleton from 'primevue/skeleton'
 
-const totalBalance = computed(() => accounts.value.reduce((sum, a) => sum + a.balance, 0))
-
 const budgetCategories = ref<BudgetCategory[]>([])
 const debts = ref<Debt[]>([])
-const debtTotals = ref<DebtTotal>({ currentBalance: 0, totalMonthly: 0 })
+const debtTotals = ref<DebtTotal>({
+  currentBalance: 0,
+  totalMonthly: 0,
+  creditCardBalance: 0,
+  loanBalance: 0
+})
 const monthlyIncome = ref(0)
 const accounts = ref<Account[]>([])
 const loading = ref(true)
+const assetAccounts = computed(() => accounts.value.filter(account => !account.isLiability))
+const totalAssetBalance = computed(() => assetAccounts.value.reduce((sum, account) => sum + account.balance, 0))
+const netWorth = computed(() => totalAssetBalance.value - debtTotals.value.currentBalance)
 
 const totalBudgeted= computed(() =>
   allBudgetItems.value.reduce((sum, c) => sum + c.monthlyLimit, 0)
@@ -222,7 +237,7 @@ const typeColors: Record<string, string> = {
 
 const accountTypeBreakdown = computed(() => {
   const groups: Record<string, number> = {}
-  for (const acct of accounts.value) {
+  for (const acct of assetAccounts.value) {
     const type = acct.type || 'other'
     groups[type] = (groups[type] || 0) + acct.balance
   }

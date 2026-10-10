@@ -2,7 +2,7 @@
   <div class="historical-net-worth">
     <div v-if="historyRows.length === 0" class="empty-state">
       <i class="pi pi-info-circle"></i>
-      <span>No history data. Import an Excel file to see historical account progression.</span>
+      <span>No history data. Sync a Plaid institution or import an Excel file to begin tracking monthly balances.</span>
       <ExcelImport v-if="!compact" @imported="reload" style="margin-top: 16px;" />
     </div>
 
@@ -49,7 +49,7 @@
             <button class="filter-link" @click="filterAccounts = []">None</button>
             <label v-for="acct in allAccounts" :key="acct" class="account-checkbox">
               <input type="checkbox" :checked="filterAccounts.includes(acct)" @change="toggleAccount(acct)" />
-              {{ acct }}
+              {{ accountLabels[acct] }}
             </label>
           </div>
         </template>
@@ -125,16 +125,28 @@ const filterDateTo = ref<Date | null>(null)
 const filterAccounts = ref<string[]>([])
 const filterTags = ref<string[]>([])
 
+function accountKey(row: AccountHistoryEntry): string {
+  return row.source === 'plaid' && row.source_account_id
+    ? `plaid:${row.source_account_id}`
+    : `manual:${row.account_name}`
+}
+
 const allAccounts = computed(() => {
-  const s = new Set(historyRows.value.map(r => r.account_name))
+  const s = new Set(historyRows.value.map(accountKey))
   return [...s].sort()
+})
+
+const accountLabels = computed(() => {
+  const labels: Record<string, string> = {}
+  for (const row of historyRows.value) labels[accountKey(row)] = row.account_name
+  return labels
 })
 
 const allTags = computed(() => {
   const fromTs = filterDateFrom.value ? filterDateFrom.value.getTime() : 0
   const toTs = filterDateTo.value ? filterDateTo.value.getTime() : Infinity
   const relevant = historyRows.value.filter(row => {
-    if (filterAccounts.value.length > 0 && !filterAccounts.value.includes(row.account_name)) return false
+    if (filterAccounts.value.length > 0 && !filterAccounts.value.includes(accountKey(row))) return false
     const rowTs = parseMMDDYYYY(row.date)
     if (fromTs && rowTs < fromTs) return false
     if (toTs !== Infinity && rowTs > toTs) return false
@@ -178,7 +190,7 @@ const filteredRows = computed(() => {
   const fromTs = filterDateFrom.value ? filterDateFrom.value.getTime() : 0
   const toTs = filterDateTo.value ? filterDateTo.value.getTime() : Infinity
   return historyRows.value.filter(row => {
-    if (filterAccounts.value.length > 0 && !filterAccounts.value.includes(row.account_name)) return false
+    if (filterAccounts.value.length > 0 && !filterAccounts.value.includes(accountKey(row))) return false
     const rowTs = parseMMDDYYYY(row.date)
     if (fromTs && rowTs < fromTs) return false
     if (toTs !== Infinity && rowTs > toTs) return false
@@ -204,15 +216,16 @@ const dates = computed(() => {
 })
 
 const accounts = computed(() => {
-  const s = new Set(filteredRows.value.map(r => r.account_name))
+  const s = new Set(filteredRows.value.map(accountKey))
   return [...s].sort()
 })
 
 const valueMap = computed(() => {
   const map: Record<string, Record<string, number>> = {}
   for (const row of filteredRows.value) {
-    if (!map[row.account_name]) map[row.account_name] = {}
-    map[row.account_name][row.date] = row.value
+    const key = accountKey(row)
+    if (!map[key]) map[key] = {}
+    map[key][row.date] = row.value * (row.balance_effect ?? 1)
   }
   return map
 })
@@ -260,7 +273,7 @@ const chartData = computed(() => {
   const datasets: any[] = []
   accounts.value.forEach((acct, idx) => {
     datasets.push({
-      label: acct,
+      label: accountLabels.value[acct] || acct,
       data: dates.value.map(d => getValue(acct, d)),
       borderColor: chartColors[idx % chartColors.length],
       backgroundColor: 'transparent',

@@ -8,6 +8,7 @@ A standalone desktop application for tracking personal finances and managing bud
 - Record and categorize transactions (income, expenses, transfers)
 - Set monthly budget limits by category with visual progress tracking
 - Dashboard with spending charts, budget progress, and financial overview
+- Optional Plaid bank linking for account balances and transaction sync
 - All data stored locally in a SQLite database file
 
 ## Tech Stack
@@ -16,6 +17,110 @@ A standalone desktop application for tracking personal finances and managing bud
 - **Frontend:** Vue 3 + TypeScript + PrimeVue + Chart.js
 - **Database:** SQLite (via sql.js, stored in `%APPDATA%/FinPulse/finpulse.db`)
 - **IPC:** Electron contextBridge (no HTTP server needed)
+
+## Plaid Bank Sync
+
+FinPulse supports standalone, bring-your-own-credentials Plaid integration. Each user supplies
+credentials from their own Plaid developer account; FinPulse does not require a hosted backend.
+
+1. Create a Plaid developer account and open **Team Settings → Keys** in the
+   [Plaid Dashboard](https://dashboard.plaid.com/team/keys).
+2. Start with the Sandbox Client ID and Sandbox secret.
+3. In FinPulse, open **Settings → Plaid Bank Sync**, save the credentials, and select
+   **Connect Institution**.
+4. For Sandbox institutions, use Plaid's test credentials: `user_good` / `pass_good`.
+
+Plaid credentials and access tokens are encrypted using Electron `safeStorage` and remain on the
+local machine. They are never stored in the SQLite database or exposed back to the renderer.
+Plaid Link runs in a separate sandboxed window without the FinPulse preload API. Imported balances
+and transactions are stored in the local FinPulse database. Clearing Plaid revokes each Item before
+deleting its local token; failed revocations retain the token so removal can be retried.
+
+Each successful sync records the latest balance snapshot for every linked account on the current
+local calendar day. Syncing again on the same day updates that day's point; syncing on a later day
+adds a new point. Snapshots are retained indefinitely and remain available in **Historical Net
+Worth** after an institution is disconnected.
+
+Automatic sync can run on the first day, last day, or both at a configurable local time. Both
+boundaries default to enabled at 9:00 AM. FinPulse must be open to run at the selected time. If the
+app was closed or asleep, it performs one catch-up sync with current data on the next launch or
+resume; it never backdates a current balance to a missed date. Manual Sync All and per-institution
+sync remain available.
+
+Automatic and manual runs retrieve balances through `/accounts/balance/get` and incremental
+transactions through `/transactions/sync`. Plaid implements these read operations as HTTP POST
+requests so credentials can be sent in the request body, but FinPulse does not invoke payment,
+transfer, or institution-modification products. Transaction webhooks are not used because a
+desktop-only app has no continuously reachable public HTTPS endpoint; transactions are polled
+during scheduled and manual syncs instead.
+
+Plaid's Accounts and Balance APIs do not provide older balance history, so FinPulse does not
+estimate prior balances. Users with true historical records can import them from Excel. Plaid Asset
+Reports are intentionally not used: they are limited to 731 days, require institutions to be linked
+with the Assets product, and Production or Additional History usage may incur fees.
+
+Plaid credit cards, loans, and mortgages are classified as liabilities. They appear as positive
+amounts owed in the Accounts **Liabilities** section and on the Debts page, but are subtracted from
+Dashboard, Historical Net Worth, and Projection totals. When a manually entered debt appears to
+match a Plaid liability, FinPulse asks before merging them. A merged row uses Plaid's live balance
+and type while retaining the manual monthly payment, APR, and notes, so the liability is counted
+only once. FinPulse does not enable Plaid's separate Liabilities product; payment and APR metadata
+remain manually managed.
+
+Credit cards are presented separately from loans and mortgages because they are revolving
+liabilities. FinPulse shows the live current balance, Plaid credit limit and utilization when
+available, a manually entered statement balance, payment strategy, APR, and notes. New cards default
+to **Pay in full**:
+
+- A statement balance entered during the current month is used as the planned payment.
+- If no current statement balance exists, the live current balance is used.
+- Older statement balances remain visible but are marked stale and are not used for budgeting.
+- A card can instead use a custom monthly target or be excluded from the monthly payment budget.
+
+Dashboard shows credit-card balances separately from loan debt. Both still reduce net worth, while
+Monthly Debt Payments combines fixed loan payments with each card's calculated planned payment.
+
+> [!WARNING]
+> A distributed desktop app cannot protect an API secret as strongly as a hosted backend. This mode
+> is intended for personal use where each user owns the Plaid credentials. Live institutions require
+> Plaid Production approval, and OAuth-based institutions may require additional redirect setup.
+
+## Notification History
+
+FinPulse keeps the newest 100 app notifications in the local database so short-lived pop-up toasts
+can be reviewed later. Use the bell in the global header to open the notification drawer from any
+page.
+
+- Success, information, warning, and error toasts are stored across app restarts.
+- Important background events, such as an automatic Plaid sync failure, are also stored.
+- Plaid sync notifications show generic account and transaction change totals immediately. Use
+  **Details** to view the specific accounts and dated transactions that changed.
+- Opening the drawer marks all notifications read and clears the unread badge.
+- Dismissing a notification permanently removes that entry.
+- **Clear All** requires confirmation and permanently removes the full notification history.
+- Settings **Clear All Data** intentionally preserves notifications for auditability.
+
+Pop-up toasts retain their existing short duration; the drawer is the persistent record.
+
+## Local Backups
+
+FinPulse creates one automatic local backup per day while the app is running and retains 30 daily
+versions, 10 manual versions, and 5 pre-restore safety versions. Open
+**Settings → Local Backup & Restore** to create a backup immediately, inspect the backup folder, or
+restore a prior version.
+
+Each version is stored under the Electron user-data `backups` directory and contains:
+
+- the complete `finpulse.db` SQLite database;
+- `plaid-secrets.json` when Plaid is configured, still encrypted by Electron `safeStorage`;
+- a versioned manifest containing file sizes and SHA-256 integrity hashes.
+
+Before restoring, FinPulse validates the backup and creates a separate pre-restore safety backup of
+the current state. It then replaces both the database and encrypted Plaid secret file and restarts
+the app. Restoring a version without Plaid credentials removes the current encrypted credential
+file. Because Plaid credentials are protected by the operating-system account, a backup copied to
+another computer or user account may restore the financial database but may not be able to decrypt
+the Plaid credentials.
 
 ## Prerequisites
 
@@ -77,23 +182,14 @@ When the app launches, it checks GitHub Releases for a newer version:
 
 ### Publishing a new version
 
-When you're ready to release an update:
+Windows releases must be code-signed. Configure electron-builder's `CSC_LINK` and
+`CSC_KEY_PASSWORD` environment variables. You may also set `FINPULSE_SIGNING_SUBJECT` to require an
+exact certificate subject during release verification.
 
-1. Bump the version in `electron/package.json`
-2. Build the installer:
-   ```bash
-   npm run electron:build
-   ```
-3. Create a GitHub release with the artifacts:
-   ```bash
-   gh release create vX.X.X \
-     "electron/release/FinPulse Setup X.X.X.exe" \
-     "electron/release/latest.yml" \
-     "electron/release/FinPulse Setup X.X.X.exe.blockmap" \
-     --title "FinPulse vX.X.X" \
-     --notes "Release notes here"
-   ```
-4. Everyone running the app will be prompted to update on their next launch
+Run `npm run electron:release`, choose the semantic version bump, and let the release script build,
+verify the Authenticode signature, commit the version bump, and publish the installer and update
+metadata. The script stops before publishing if signing configuration is absent or the resulting
+installer signature is invalid.
 
 ## Project Structure
 

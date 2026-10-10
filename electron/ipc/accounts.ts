@@ -20,7 +20,13 @@ function formatRow(row: any): any {
 
 export function registerAccountHandlers(): void {
   ipcMain.handle('accounts:getAll', () => {
-    const rows = query('SELECT * FROM accounts ORDER BY name');
+    const rows = query(`
+      SELECT a.*,
+             CASE WHEN pa.plaid_account_id IS NOT NULL THEN 1 ELSE 0 END AS plaid_connected
+      FROM accounts a
+      LEFT JOIN plaid_accounts pa ON pa.local_account_id = a.id
+      ORDER BY a.is_liability, a.name
+    `);
     return rows.map(formatRow);
   });
 

@@ -117,7 +117,7 @@
                 </tr>
               </thead>
               <tbody>
-                <template v-for="item in paginatedItems" :key="item.type === 'header' ? 'h-' + item.account : 'e-' + item.row.account_name + item.row.date">
+                <template v-for="item in paginatedItems" :key="item.type === 'header' ? 'h-' + item.account : 'e-' + item.row.id">
                   <!-- Account group header -->
                   <tr v-if="item.type === 'header'" class="group-header-row" @click="toggleCollapse(item.account)">
                     <td colspan="4">
@@ -139,19 +139,19 @@
                     <td>{{ item.row.date }}</td>
                     <td class="balance-cell">
                       <input
-                        v-if="isEditingValue(item.row.account_name, item.row.date)"
+                        v-if="isEditingValue(item.row.id)"
                         type="text"
                         v-model="editingValue"
                         class="edit-input"
                         @blur="saveEditValue"
                         @keyup.enter="saveEditValue"
                       />
-                      <span v-else class="editable-cell" @click="startEditValue(item.row.account_name, item.row.date)">
+                      <span v-else class="editable-cell" @click="startEditValue(item.row)">
                         {{ formatCurrency(item.row.value) }}
                       </span>
                     </td>
                     <td class="tag-cell">
-                      <div v-if="isEditingTag(item.row.account_name, item.row.date)" class="tag-edit-row">
+                      <div v-if="isEditingTag(item.row.id)" class="tag-edit-row">
                         <Chips
                           v-model="editingTagValue"
                           separator=","
@@ -166,7 +166,7 @@
                           <i class="pi pi-times"></i> Clear
                         </button>
                       </div>
-                      <span v-else class="editable-cell tag-chips-display" @click="startEditTag(item.row.account_name, item.row.date)">
+                      <span v-else class="editable-cell tag-chips-display" @click="startEditTag(item.row)">
                         <template v-if="item.row.tag">
                           <span v-for="t in item.row.tag.split(',').map((s: string) => s.trim()).filter(Boolean)" :key="t" class="tag-chip">{{ t }}</span>
                         </template>
@@ -174,7 +174,7 @@
                       </span>
                     </td>
                     <td class="actions-cell">
-                      <template v-if="pendingDelete?.account === item.row.account_name && pendingDelete?.date === item.row.date">
+                      <template v-if="pendingDelete?.id === item.row.id">
                         <button class="confirm-delete-btn" title="Confirm delete" @click="confirmDelete">
                           <i class="pi pi-check"></i>
                         </button>
@@ -186,7 +186,7 @@
                         <button
                           class="delete-entry-btn"
                           title="Delete entry"
-                          @click="onDeleteEntry(item.row.account_name, item.row.date)"
+                          @click="onDeleteEntry(item.row)"
                         ><i class="pi pi-trash"></i></button>
                       </template>
                     </td>
@@ -279,7 +279,7 @@ import {
   Filler
 } from 'chart.js'
 import type { Account, AccountHistoryEntry } from '@/types'
-import { getAccounts, updateHistoryEntry, clearAccountTags, addHistoryEntry, deleteHistoryEntry } from '@/services/api'
+import { getAccounts, getDebts, updateHistoryEntry, clearAccountTags, addHistoryEntry, deleteHistoryEntry } from '@/services/api'
 import { useToast } from 'primevue/usetoast'
 import HistoricalNetWorth from '@/components/HistoricalNetWorth.vue'
 import Dialog from 'primevue/dialog'
@@ -299,11 +299,12 @@ const accountSettings = ref<AccountProjectionSettings[]>([])
 const activeTab = ref<'future' | 'history'>('future')
 const toast = useToast()
 const historyRef = ref<InstanceType<typeof HistoricalNetWorth> | null>(null)
+const manualDebtBalance = ref(0)
 
 // Editing state
-const editingCell = ref<{ account: string; date: string } | null>(null)
+const editingCell = ref<AccountHistoryEntry | null>(null)
 const editingValue = ref('')
-const editingTagCell = ref<{ account: string; date: string } | null>(null)
+const editingTagCell = ref<AccountHistoryEntry | null>(null)
 const editingTagValue = ref<string[]>([])
 
 // Sorting state — applies within each account group
@@ -475,13 +476,16 @@ function getDefaultRate(type: string): number {
 
 onMounted(async () => {
   try {
-    const accounts = await getAccounts()
+    const [accounts, debts] = await Promise.all([getAccounts(), getDebts()])
     accountSettings.value = accounts.map(account => ({
       account,
       enabled: true,
-      annualRate: getDefaultRate(account.type),
+      annualRate: account.isLiability ? 0 : getDefaultRate(account.type),
       monthlyContribution: 0
     }))
+    manualDebtBalance.value = debts
+      .filter(debt => debt.source === 'manual')
+      .reduce((sum, debt) => sum + debt.currentBalance, 0)
   } catch {
     // API not available
   }
@@ -509,7 +513,12 @@ const projectionData = computed(() => {
   enabledAccounts.value.forEach((item, idx) => {
     accountProjections.push({
       name: item.account.name,
-      values: projectAccount(item.account.balance, item.annualRate, item.monthlyContribution, months),
+      values: projectAccount(
+        item.account.isLiability ? -Math.abs(item.account.balance) : item.account.balance,
+        item.annualRate,
+        item.monthlyContribution,
+        months
+      ),
       color: colors[idx % colors.length]
     })
   })
@@ -517,7 +526,7 @@ const projectionData = computed(() => {
   // Calculate total net worth line
   const totalValues: number[] = []
   for (let m = 0; m <= months; m++) {
-    let total = 0
+    let total = -manualDebtBalance.value
     for (const proj of accountProjections) {
       total += proj.values[m]
     }
@@ -528,7 +537,10 @@ const projectionData = computed(() => {
 })
 
 const startingNetWorth = computed(() =>
-  enabledAccounts.value.reduce((sum, a) => sum + a.account.balance, 0)
+  enabledAccounts.value.reduce(
+    (sum, item) => sum + (item.account.isLiability ? -Math.abs(item.account.balance) : item.account.balance),
+    -manualDebtBalance.value
+  )
 )
 
 const projectedNetWorth = computed(() => {
@@ -626,63 +638,59 @@ const chartOptions = computed(() => ({
 
 // --- HISTORY ---
 
-// Tag map from component's history rows (for editing)
-function getHistoryTag(account: string, date: string): string {
-  const rows = historyRef.value?.historyRows ?? []
-  const row = rows.find((r: AccountHistoryEntry) => r.account_name === account && r.date === date)
-  return row?.tag ?? ''
-}
-
 function onHistoryReloaded(_rows: AccountHistoryEntry[]) {
   // Component handles its own state; this is a hook for future use
 }
 
 // Editing functions
-function startEditValue(account: string, date: string) {
-  editingCell.value = { account, date }
-  const val = historyRef.value?.getValue(account, date) ?? 0
-  editingValue.value = val.toFixed(2)
+function startEditValue(row: AccountHistoryEntry) {
+  editingCell.value = row
+  editingValue.value = row.value.toFixed(2)
 }
 
 async function saveEditValue() {
   if (!editingCell.value) return
-  const { account, date } = editingCell.value
+  const row = editingCell.value
   const newVal = Math.round(parseFloat(editingValue.value || '0') * 100) / 100
-  const tag = getHistoryTag(account, date)
-  await updateHistoryEntry({ account_name: account, date, value: newVal, tag })
-  // Update the component's data
-  const rows = historyRef.value?.historyRows ?? []
-  const row = rows.find((r: AccountHistoryEntry) => r.account_name === account && r.date === date)
-  if (row) row.value = newVal
+  await updateHistoryEntry({
+    id: row.id,
+    account_name: row.account_name,
+    value: newVal,
+    tag: row.tag
+  })
+  row.value = newVal
   editingCell.value = null
 }
 
-function startEditTag(account: string, date: string) {
-  editingTagCell.value = { account, date }
-  const raw = getHistoryTag(account, date)
-  editingTagValue.value = raw ? raw.split(',').map(t => t.trim()).filter(Boolean) : []
+function startEditTag(row: AccountHistoryEntry) {
+  editingTagCell.value = row
+  editingTagValue.value = row.tag ? row.tag.split(',').map(t => t.trim()).filter(Boolean) : []
 }
 
 async function saveEditTag() {
   if (!editingTagCell.value) return
-  const { account, date } = editingTagCell.value
-  const value = historyRef.value?.getValue(account, date) ?? 0
+  const row = editingTagCell.value
   const newTag = editingTagValue.value.map(t => t.trim()).filter(Boolean).join(',')
-  await updateHistoryEntry({ account_name: account, date, value, tag: newTag })
-  const rows = historyRef.value?.historyRows ?? []
-  const row = rows.find((r: AccountHistoryEntry) => r.account_name === account && r.date === date)
-  if (row) row.tag = newTag
+  await updateHistoryEntry({
+    id: row.id,
+    account_name: row.account_name,
+    value: row.value,
+    tag: newTag
+  })
+  row.tag = newTag
   editingTagCell.value = null
 }
 
 async function clearEntryTags() {
   if (!editingTagCell.value) return
-  const { account, date } = editingTagCell.value
-  const value = historyRef.value?.getValue(account, date) ?? 0
-  await updateHistoryEntry({ account_name: account, date, value, tag: '' })
-  const rows = historyRef.value?.historyRows ?? []
-  const row = rows.find((r: AccountHistoryEntry) => r.account_name === account && r.date === date)
-  if (row) row.tag = ''
+  const row = editingTagCell.value
+  await updateHistoryEntry({
+    id: row.id,
+    account_name: row.account_name,
+    value: row.value,
+    tag: ''
+  })
+  row.tag = ''
   editingTagCell.value = null
 }
 
@@ -695,12 +703,12 @@ function onTagEnter(e: KeyboardEvent) {
   }
 }
 
-function isEditingValue(account: string, date: string): boolean {
-  return editingCell.value?.account === account && editingCell.value?.date === date
+function isEditingValue(id: string): boolean {
+  return editingCell.value?.id === id
 }
 
-function isEditingTag(account: string, date: string): boolean {
-  return editingTagCell.value?.account === account && editingTagCell.value?.date === date
+function isEditingTag(id: string): boolean {
+  return editingTagCell.value?.id === id
 }
 
 function formatCurrency(amount: number): string {
@@ -723,19 +731,19 @@ async function onClearTag(account: string) {
 }
 
 // Delete entry
-const pendingDelete = ref<{ account: string; date: string } | null>(null)
+const pendingDelete = ref<AccountHistoryEntry | null>(null)
 
-function onDeleteEntry(accountName: string, date: string) {
-  pendingDelete.value = { account: accountName, date }
+function onDeleteEntry(row: AccountHistoryEntry) {
+  pendingDelete.value = row
 }
 
 async function confirmDelete() {
   if (!pendingDelete.value) return
-  const { account, date } = pendingDelete.value
+  const row = pendingDelete.value
   pendingDelete.value = null
-  await deleteHistoryEntry({ account_name: account, date })
+  await deleteHistoryEntry({ id: row.id, account_name: row.account_name })
   await historyRef.value?.reload()
-  toast.add({ severity: 'warn', summary: 'Entry Deleted', detail: `Removed ${date} from ${account}`, life: 2000 })
+  toast.add({ severity: 'warn', summary: 'Entry Deleted', detail: `Removed ${row.date} from ${row.account_name}`, life: 2000 })
 }
 
 function cancelDelete() {

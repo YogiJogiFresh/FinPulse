@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld('api', {
   updateDebt: (data: any) => ipcRenderer.invoke('debts:update', data),
   deleteDebt: (id: string) => ipcRenderer.invoke('debts:delete', { id }),
   getDebtTotal: () => ipcRenderer.invoke('debts:total'),
+  getLiabilityLinkSuggestions: () => ipcRenderer.invoke('debts:getLinkSuggestions'),
+  linkDebtAccount: (data: any) => ipcRenderer.invoke('debts:linkAccount', data),
+  unlinkDebtAccount: (debtId: string) => ipcRenderer.invoke('debts:unlinkAccount', debtId),
+  dismissLiabilityLinkSuggestion: (data: any) => ipcRenderer.invoke('debts:dismissLinkSuggestion', data),
 
   // Income
   getIncomeSources: () => ipcRenderer.invoke('income:getAll'),
@@ -34,6 +38,24 @@ contextBridge.exposeInMainWorld('api', {
   clearAllData: () => ipcRenderer.invoke('settings:clearAllData'),
   clearByPage: (page: string) => ipcRenderer.invoke('settings:clearByPage', page),
 
+  // Backups
+  getBackups: () => ipcRenderer.invoke('backups:getAll'),
+  createBackup: () => ipcRenderer.invoke('backups:create'),
+  openBackupFolder: () => ipcRenderer.invoke('backups:openFolder'),
+  restoreBackup: (id: string) => ipcRenderer.invoke('backups:restore', id),
+
+  // Notifications
+  getAppNotifications: () => ipcRenderer.invoke('notifications:getAll'),
+  createAppNotification: (data: any) => ipcRenderer.invoke('notifications:create', data),
+  markAllAppNotificationsRead: () => ipcRenderer.invoke('notifications:markAllRead'),
+  dismissAppNotification: (id: string) => ipcRenderer.invoke('notifications:dismiss', id),
+  clearAppNotifications: () => ipcRenderer.invoke('notifications:clearAll'),
+  onAppNotificationsChanged: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('notifications:changed', listener);
+    return () => ipcRenderer.removeListener('notifications:changed', listener);
+  },
+
   // Budget
   getBudgetCategories: () => ipcRenderer.invoke('budget:getAll'),
   createBudgetCategory: (data: any) => ipcRenderer.invoke('budget:create', data),
@@ -43,7 +65,6 @@ contextBridge.exposeInMainWorld('api', {
 
   // History
   openAndParseExcel: () => ipcRenderer.invoke('history:openAndParse'),
-  parseExcelBase64: (base64: string) => ipcRenderer.invoke('history:parseExcelBase64', base64),
   importHistory: (data: any) => ipcRenderer.invoke('history:import', data),
   getAccountHistory: () => ipcRenderer.invoke('history:getAll'),
   updateHistoryEntry: (data: any) => ipcRenderer.invoke('history:updateEntry', data),
@@ -97,6 +118,22 @@ contextBridge.exposeInMainWorld('api', {
   createBankConfig: (data: any) => ipcRenderer.invoke('bankConfigs:create', data),
   updateBankConfig: (id: string, data: any) => ipcRenderer.invoke('bankConfigs:update', id, data),
   deleteBankConfig: (id: string) => ipcRenderer.invoke('bankConfigs:delete', id),
+
+  // Plaid
+  getPlaidStatus: () => ipcRenderer.invoke('plaid:getStatus'),
+  configurePlaid: (data: any) => ipcRenderer.invoke('plaid:configure', data),
+  openPlaidLink: () => ipcRenderer.invoke('plaid:openLink'),
+  syncPlaid: (itemId?: string) => ipcRenderer.invoke('plaid:sync', itemId),
+  getPlaidSchedule: () => ipcRenderer.invoke('plaid:getSchedule'),
+  setPlaidSchedule: (data: any) => ipcRenderer.invoke('plaid:setSchedule', data),
+  onPlaidScheduleChanged: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('plaid:scheduleChanged', listener);
+    return () => ipcRenderer.removeListener('plaid:scheduleChanged', listener);
+  },
+  disconnectPlaid: (itemId: string) => ipcRenderer.invoke('plaid:disconnect', itemId),
+  clearPlaid: () => ipcRenderer.invoke('plaid:clear'),
+  openPlaidDashboard: () => ipcRenderer.invoke('plaid:openDashboard'),
 
   // Platform info
   platform: process.platform,

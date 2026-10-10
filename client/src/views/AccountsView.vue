@@ -4,7 +4,18 @@
       <Button label="Add Account" icon="pi pi-plus" @click="openCreate" />
     </div>
 
-    <AccountList :accounts="accounts" :loading="loading" @edit="openEdit" @delete="onDelete" />
+    <section class="account-section">
+      <h3>Assets</h3>
+      <AccountList :accounts="assetAccounts" :loading="loading" @edit="openEdit" @delete="onDelete" />
+    </section>
+
+    <section class="account-section">
+      <div class="section-heading">
+        <h3>Liabilities</h3>
+        <small>Balances shown are amounts owed and reduce net worth.</small>
+      </div>
+      <AccountList :accounts="liabilityAccounts" :loading="loading" liability @edit="openEdit" @delete="onDelete" />
+    </section>
 
     <Dialog v-model:visible="dialogVisible" :header="editingAccount ? 'Edit Account' : 'New Account'" modal :style="{ width: '90vw', maxWidth: '28rem' }">
       <AccountForm :account="editingAccount" @save="onSave" @cancel="dialogVisible = false" />
@@ -13,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { Account } from '@/types'
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/services/api'
 import AccountList from '@/components/accounts/AccountList.vue'
@@ -25,6 +36,8 @@ const accounts = ref<Account[]>([])
 const dialogVisible = ref(false)
 const editingAccount = ref<Account | null>(null)
 const loading = ref(true)
+const assetAccounts = computed(() => accounts.value.filter(account => !account.isLiability))
+const liabilityAccounts = computed(() => accounts.value.filter(account => Boolean(account.isLiability)))
 
 async function loadAccounts() {
   loading.value = true
@@ -74,5 +87,25 @@ onMounted(loadAccounts)
 .view-toolbar {
   display: flex;
   justify-content: flex-start;
+}
+
+.account-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-section h3 {
+  color: #f1f5f9;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.section-heading small {
+  color: #94a3b8;
 }
 </style>

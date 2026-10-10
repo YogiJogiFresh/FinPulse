@@ -1,12 +1,14 @@
 <template>
   <header class="app-header">
     <h1 class="page-title">{{ pageTitle }}</h1>
+    <NotificationCenter />
   </header>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import NotificationCenter from './NotificationCenter.vue'
 
 const route = useRoute()
 
@@ -17,6 +19,9 @@ const pageTitle = computed(() => {
 
 <style scoped>
 .app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 20px 24px 0;
 }
 

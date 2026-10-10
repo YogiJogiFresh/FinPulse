@@ -6,6 +6,17 @@ export interface Account {
   currency: string
   createdAt: string
   updatedAt: string
+  source: 'manual' | 'plaid'
+  institutionName: string
+  plaidAccountId: string
+  plaidType: string
+  plaidSubtype: string
+  mask: string
+  creditLimit: number | null
+  availableCredit: number | null
+  isLiability: number
+  liabilityType: Debt['type'] | ''
+  plaidConnected: number
 }
 
 export interface BudgetCategory {
@@ -32,11 +43,26 @@ export interface Debt {
   notes?: string
   createdAt: string
   updatedAt: string
+  source?: 'manual' | 'plaid'
+  linkedAccountId?: string | null
+  institutionName?: string
+  plaidConnected?: number
+  hasManualMetadata?: boolean
+  paymentStrategy?: 'fixed' | 'pay_in_full' | 'custom' | 'exclude'
+  statementBalance?: number | null
+  statementBalanceAsOf?: string | null
+  statementIsStale?: boolean
+  plannedPayment?: number
+  creditLimit?: number | null
+  availableCredit?: number | null
+  utilization?: number | null
 }
 
 export interface DebtTotal {
   currentBalance: number
   totalMonthly: number
+  creditCardBalance: number
+  loanBalance: number
 }
 
 export interface IncomeSource {
@@ -58,10 +84,26 @@ export interface IncomeDistribution {
 }
 
 export interface AccountHistoryEntry {
+  id: string
   account_name: string
   date: string
   value: number
   tag: string
+  source?: 'manual' | 'plaid'
+  source_account_id?: string
+  balance_effect?: number
+  captured_at?: string
+  sync_run_id?: string
+  sync_trigger?: 'legacy' | 'manual' | 'link' | 'scheduled' | 'catch_up'
+}
+
+export interface LiabilityMatchSuggestion {
+  accountId: string
+  accountName: string
+  institutionName: string
+  debtId: string
+  debtName: string
+  liabilityType: Debt['type']
 }
 
 export interface ParsedExcelData {
@@ -174,4 +216,81 @@ export interface BankConfig {
   detectionFields: string
   customColumns: { csvHeader: string; displayName: string }[]
   createdAt: string
+}
+
+export interface PlaidItem {
+  itemId: string
+  institutionName: string
+  createdAt: string
+  lastSyncedAt: string | null
+}
+
+export interface PlaidStatus {
+  configured: boolean
+  environment: 'sandbox' | 'production' | null
+  secureStorageAvailable: boolean
+  items: PlaidItem[]
+}
+
+export interface PlaidSyncResult {
+  added: number
+  modified: number
+  removed: number
+  items?: number
+  institutions: {
+    institutionName: string
+    accountsAddedCount: number
+    accountsUpdatedCount: number
+    accountsAdded: string[]
+    accountsUpdated: string[]
+    transactionsAddedCount: number
+    transactionsModifiedCount: number
+    transactionsRemovedCount: number
+    transactionsAdded: string[]
+    transactionsModified: string[]
+    transactionsRemoved: string[]
+  }[]
+}
+
+export interface PlaidScheduleConfig {
+  firstDayEnabled: boolean
+  lastDayEnabled: boolean
+  localTime: string
+}
+
+export interface PlaidScheduleStatus extends PlaidScheduleConfig {
+  lastAttemptAt: string | null
+  lastSuccessAt: string | null
+  lastTrigger: 'link' | 'manual' | 'scheduled' | 'catch_up' | null
+  lastError: string | null
+  lastCompletedSlot: string | null
+  nextRunAt: string | null
+}
+
+export type AppNotificationSeverity = 'success' | 'info' | 'warn' | 'error'
+
+export interface CreateAppNotification {
+  severity?: AppNotificationSeverity
+  summary?: string
+  detail?: string
+  expandedDetail?: string
+}
+
+export interface AppNotification {
+  id: string
+  severity: AppNotificationSeverity
+  summary: string
+  detail: string
+  expandedDetail: string
+  source: string
+  createdAt: string
+  readAt: string | null
+}
+
+export interface BackupRecord {
+  id: string
+  createdAt: string
+  reason: 'automatic' | 'manual' | 'pre_restore'
+  sizeBytes: number
+  includesPlaidSecrets: boolean
 }

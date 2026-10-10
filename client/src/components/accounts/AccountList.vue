@@ -3,13 +3,25 @@
     <Column field="name" header="Name" sortable />
     <Column field="type" header="Type" sortable>
       <template #body="{ data }">
-        <Tag :value="formatType(data.type)" :severity="typeSeverity(data.type)" />
+        <Tag
+          :value="formatType(liability ? data.liabilityType || data.type : data.type)"
+          :severity="typeSeverity(liability ? data.liabilityType || data.type : data.type)"
+        />
       </template>
     </Column>
-    <Column field="balance" header="Balance" sortable>
+    <Column header="Source">
       <template #body="{ data }">
-        <span :class="{ 'text-positive': data.balance >= 0, 'text-negative': data.balance < 0 }">
-          {{ formatCurrency(data.balance, data.currency) }}
+        <div class="source-cell">
+          <Tag :value="data.source === 'plaid' ? 'Plaid' : 'Manual'" :severity="data.source === 'plaid' ? 'info' : 'secondary'" />
+          <small v-if="data.institutionName">{{ data.institutionName }}</small>
+          <small v-if="data.source === 'plaid' && !data.plaidConnected" class="disconnected">Disconnected</small>
+        </div>
+      </template>
+    </Column>
+    <Column field="balance" :header="liability ? 'Amount Owed' : 'Balance'" sortable>
+      <template #body="{ data }">
+        <span :class="liability ? 'text-negative' : { 'text-positive': data.balance >= 0, 'text-negative': data.balance < 0 }">
+          {{ formatCurrency(Math.abs(data.balance), data.currency) }}
         </span>
       </template>
     </Column>
@@ -21,8 +33,13 @@
     <Column header="Actions" style="width: 15%">
       <template #body="{ data }">
         <div class="action-buttons">
-          <Button icon="pi pi-pencil" severity="info" text rounded @click="$emit('edit', data)" />
-          <Button icon="pi pi-trash" severity="danger" text rounded @click="$emit('delete', data)" />
+          <template v-if="data.source !== 'plaid'">
+            <Button icon="pi pi-pencil" severity="info" text rounded @click="$emit('edit', data)" />
+            <Button icon="pi pi-trash" severity="danger" text rounded @click="$emit('delete', data)" />
+          </template>
+          <span v-else v-tooltip.bottom="'Plaid manages this account. Use Settings to disconnect the institution.'" class="managed-icon">
+            <i class="pi pi-lock"></i>
+          </span>
         </div>
       </template>
     </Column>
@@ -39,6 +56,7 @@ import Tag from 'primevue/tag'
 defineProps<{
   accounts: Account[]
   loading?: boolean
+  liability?: boolean
 }>()
 
 defineEmits<{
@@ -55,6 +73,10 @@ function typeSeverity(type: string): 'success' | 'info' | 'warn' | 'danger' | 's
     checking: 'info',
     savings: 'success',
     credit_card: 'warn',
+    mortgage: 'info',
+    student_loan: 'warn',
+    car_loan: 'secondary',
+    personal_loan: 'info',
     investment: 'success',
     retirement: 'info',
     cash: 'success',
@@ -94,5 +116,25 @@ function formatDate(dateStr: string): string {
 .text-muted {
   color: #94a3b8;
   font-size: 0.85rem;
+}
+
+.source-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.source-cell small {
+  color: #94a3b8;
+}
+
+.source-cell .disconnected {
+  color: #fbbf24;
+}
+
+.managed-icon {
+  color: #64748b;
+  padding: 8px;
 }
 </style>

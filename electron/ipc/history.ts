@@ -3,9 +3,31 @@ import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import { getDatabase, saveDatabase, generateId, query } from '../database';
 
+const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024;
+const MAX_ROWS = 10_000;
+const MAX_COLUMNS = 1_000;
+const MAX_CELLS = 1_000_000;
+
 function parseWorkbook(fileBuffer: Buffer) {
-  const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+  if (fileBuffer.length > MAX_WORKBOOK_BYTES) {
+    throw new Error('The workbook is too large. The maximum file size is 10 MB.');
+  }
+  const workbook = XLSX.read(fileBuffer, {
+    type: 'buffer',
+    sheetRows: MAX_ROWS + 1,
+    bookVBA: false,
+    bookFiles: false,
+    cellHTML: false,
+    cellFormula: false
+  });
+  if (workbook.SheetNames.length === 0) throw new Error('The workbook does not contain a worksheet.');
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+  const rowCount = range.e.r - range.s.r + 1;
+  const columnCount = range.e.c - range.s.c + 1;
+  if (rowCount > MAX_ROWS || columnCount > MAX_COLUMNS || rowCount * columnCount > MAX_CELLS) {
+    throw new Error(`The workbook exceeds the import limit of ${MAX_ROWS} rows, ${MAX_COLUMNS} columns, or ${MAX_CELLS} cells.`);
+  }
   const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
   if (raw.length < 2 || raw[0].length < 2) {
@@ -67,21 +89,20 @@ export function registerHistoryHandlers(): void {
     return JSON.parse(JSON.stringify(parsed));
   });
 
-  ipcMain.handle('history:parseExcelBase64', (_event, base64: string) => {
-    const fileBuffer = Buffer.from(base64, 'base64');
-    const parsed = parseWorkbook(fileBuffer);
-    return JSON.parse(JSON.stringify(parsed));
-  });
-
-
   ipcMain.handle('history:import', (_event, data: { accounts: string[]; dates: string[]; values: number[][] }) => {
     const db = getDatabase();
     const { accounts, dates, values } = data;
+    if (accounts.length > MAX_ROWS || dates.length > MAX_COLUMNS || accounts.length * dates.length > MAX_CELLS) {
+      throw new Error('The imported history exceeds the supported data limits.');
+    }
+    if (values.length !== accounts.length || values.some(row => row.length !== dates.length)) {
+      throw new Error('The imported history has an invalid shape.');
+    }
 
     for (let a = 0; a < accounts.length; a++) {
       for (let d = 0; d < dates.length; d++) {
         const existing = query(
-          'SELECT id FROM account_history WHERE account_name = ? AND date = ?',
+          "SELECT id FROM account_history WHERE account_name = ? AND date = ? AND source != 'plaid'",
           [accounts[a], dates[d]]
         );
         if (existing.length > 0) {
@@ -128,15 +149,24 @@ export function registerHistoryHandlers(): void {
   });
 
   ipcMain.handle('history:getAll', () => {
-    const rows = query('SELECT account_name, date, value, tag FROM account_history ORDER BY date ASC, account_name ASC');
+    const rows = query(
+      `SELECT id, account_name, date, value, tag, source, source_account_id, balance_effect,
+              captured_at, sync_run_id, sync_trigger
+       FROM account_history ORDER BY date ASC, account_name ASC`
+    );
     return rows;
   });
 
-  ipcMain.handle('history:updateEntry', (_event, data: { account_name: string; date: string; value: number; tag: string }) => {
+  ipcMain.handle('history:updateEntry', (_event, data: {
+    id: string;
+    account_name: string;
+    value: number;
+    tag: string;
+  }) => {
     const db = getDatabase();
     db.run(
-      'UPDATE account_history SET value = ?, tag = ? WHERE account_name = ? AND date = ?',
-      [data.value, data.tag, data.account_name, data.date]
+      'UPDATE account_history SET value = ?, tag = ? WHERE id = ?',
+      [data.value, data.tag, data.id]
     );
     db.run("UPDATE accounts SET updated_at = datetime('now') WHERE name = ?", [data.account_name]);
     saveDatabase();
@@ -157,7 +187,7 @@ export function registerHistoryHandlers(): void {
   ipcMain.handle('history:addEntry', (_event, data: { account_name: string; date: string; value: number }) => {
     const db = getDatabase();
     const existing = query(
-      'SELECT id FROM account_history WHERE account_name = ? AND date = ?',
+      "SELECT id FROM account_history WHERE account_name = ? AND date = ? AND source != 'plaid'",
       [data.account_name, data.date]
     );
     if (existing.length > 0) {
@@ -172,9 +202,9 @@ export function registerHistoryHandlers(): void {
     saveDatabase();
   });
 
-  ipcMain.handle('history:deleteEntry', (_event, data: { account_name: string; date: string }) => {
+  ipcMain.handle('history:deleteEntry', (_event, data: { id: string; account_name: string }) => {
     const db = getDatabase();
-    db.run('DELETE FROM account_history WHERE account_name = ? AND date = ?', [data.account_name, data.date]);
+    db.run('DELETE FROM account_history WHERE id = ?', [data.id]);
     db.run("UPDATE accounts SET updated_at = datetime('now') WHERE name = ?", [data.account_name]);
     saveDatabase();
   });

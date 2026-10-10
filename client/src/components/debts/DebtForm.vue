@@ -18,9 +18,50 @@
     </div>
     <div class="form-field">
       <label for="currentBalance">Current Balance</label>
-      <InputNumber id="currentBalance" v-model="form.currentBalance" mode="currency" currency="USD" class="w-full" />
+      <InputNumber
+        id="currentBalance"
+        v-model="form.currentBalance"
+        mode="currency"
+        currency="USD"
+        class="w-full"
+        :disabled="debt?.source === 'plaid'"
+      />
+      <small v-if="debt?.source === 'plaid'" class="form-hint">Updated automatically by Plaid.</small>
     </div>
-    <div class="form-field">
+
+    <template v-if="form.type === 'credit_card'">
+      <div class="form-field">
+        <label for="paymentStrategy">Payment Strategy</label>
+        <Select
+          id="paymentStrategy"
+          v-model="form.paymentStrategy"
+          :options="paymentStrategies"
+          optionLabel="label"
+          optionValue="value"
+          class="w-full"
+        />
+      </div>
+      <div class="form-field">
+        <label for="statementBalance">Statement Balance</label>
+        <InputNumber
+          id="statementBalance"
+          v-model="form.statementBalance"
+          mode="currency"
+          currency="USD"
+          class="w-full"
+          placeholder="Not entered"
+        />
+        <small class="form-hint">
+          Enter manually from your latest statement. Saving a changed value marks it current for this month.
+        </small>
+      </div>
+      <div v-if="form.paymentStrategy === 'custom'" class="form-field">
+        <label for="monthlyPayment">Custom Monthly Target</label>
+        <InputNumber id="monthlyPayment" v-model="form.monthlyPayment" mode="currency" currency="USD" class="w-full" />
+      </div>
+    </template>
+
+    <div v-else class="form-field">
       <label for="monthlyPayment">Monthly Payment</label>
       <InputNumber id="monthlyPayment" v-model="form.monthlyPayment" mode="currency" currency="USD" class="w-full" />
     </div>
@@ -52,7 +93,16 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  save: [data: { name: string; type: string; currentBalance: number; monthlyPayment: number; interestRate: number; notes: string }]
+  save: [data: {
+    name: string
+    type: string
+    currentBalance: number
+    monthlyPayment: number
+    interestRate: number
+    notes: string
+    paymentStrategy: string
+    statementBalance: number | null
+  }]
   cancel: []
 }>()
 
@@ -66,13 +116,21 @@ const debtTypes = [
   { label: 'Other', value: 'other' }
 ]
 
+const paymentStrategies = [
+  { label: 'Pay in full', value: 'pay_in_full' },
+  { label: 'Custom monthly target', value: 'custom' },
+  { label: 'Exclude from monthly payment budget', value: 'exclude' }
+]
+
 const form = reactive({
   name: '',
   type: 'other',
   currentBalance: 0,
   monthlyPayment: 0,
   interestRate: 0,
-  notes: ''
+  notes: '',
+  paymentStrategy: 'pay_in_full',
+  statementBalance: null as number | null
 })
 
 watchEffect(() => {
@@ -83,6 +141,8 @@ watchEffect(() => {
     form.monthlyPayment = props.debt.monthlyPayment
     form.interestRate = props.debt.interestRate
     form.notes = props.debt.notes || ''
+    form.paymentStrategy = props.debt.paymentStrategy || 'pay_in_full'
+    form.statementBalance = props.debt.statementBalance ?? null
   }
 })
 
@@ -93,7 +153,9 @@ function onSubmit() {
     currentBalance: form.currentBalance,
     monthlyPayment: form.monthlyPayment,
     interestRate: form.interestRate,
-    notes: form.notes
+    notes: form.notes,
+    paymentStrategy: form.type === 'credit_card' ? form.paymentStrategy : 'fixed',
+    statementBalance: form.type === 'credit_card' ? form.statementBalance : null
   })
 }
 </script>
@@ -126,5 +188,10 @@ function onSubmit() {
 
 .w-full {
   width: 100%;
+}
+
+.form-hint {
+  color: #64748b;
+  font-size: 0.75rem;
 }
 </style>

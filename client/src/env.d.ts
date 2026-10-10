@@ -17,6 +17,10 @@ interface Window {
     updateDebt(data: any): Promise<import('./types').Debt>
     deleteDebt(id: string): Promise<void>
     getDebtTotal(): Promise<import('./types').DebtTotal>
+    getLiabilityLinkSuggestions(): Promise<import('./types').LiabilityMatchSuggestion[]>
+    linkDebtAccount(data: { debtId: string; accountId: string }): Promise<void>
+    unlinkDebtAccount(debtId: string): Promise<void>
+    dismissLiabilityLinkSuggestion(data: { debtId: string; accountId: string }): Promise<void>
     getIncomeSources(): Promise<import('./types').IncomeSource[]>
     createIncomeSource(data: any): Promise<import('./types').IncomeSource>
     updateIncomeSource(data: any): Promise<import('./types').IncomeSource>
@@ -30,20 +34,29 @@ interface Window {
     setSettingsBatch(settings: Record<string, string>): Promise<void>
     clearAllData(): Promise<void>
     clearByPage(page: string): Promise<void>
+    getBackups(): Promise<import('./types').BackupRecord[]>
+    createBackup(): Promise<import('./types').BackupRecord>
+    openBackupFolder(): Promise<void>
+    restoreBackup(id: string): Promise<import('./types').BackupRecord>
+    getAppNotifications(): Promise<import('./types').AppNotification[]>
+    createAppNotification(data: import('./types').CreateAppNotification): Promise<import('./types').AppNotification>
+    markAllAppNotificationsRead(): Promise<void>
+    dismissAppNotification(id: string): Promise<void>
+    clearAppNotifications(): Promise<void>
+    onAppNotificationsChanged(callback: () => void): () => void
     getBudgetCategories(): Promise<import('./types').BudgetCategory[]>
     createBudgetCategory(data: any): Promise<import('./types').BudgetCategory>
     updateBudgetCategory(data: any): Promise<import('./types').BudgetCategory>
     deleteBudgetCategory(id: string): Promise<void>
     getBudgetProgress(): Promise<import('./types').BudgetProgress[]>
     openAndParseExcel(): Promise<import('./types').ParsedExcelData | null>
-    parseExcelBase64(base64: string): Promise<import('./types').ParsedExcelData>
     importHistory(data: import('./types').ParsedExcelData): Promise<void>
     getAccountHistory(): Promise<import('./types').AccountHistoryEntry[]>
-    updateHistoryEntry(data: { account_name: string; date: string; value: number; tag: string }): Promise<void>
+    updateHistoryEntry(data: { id: string; account_name: string; value: number; tag: string }): Promise<void>
     deleteHistory(): Promise<void>
     clearAccountTags(accountName: string): Promise<void>
     addHistoryEntry(data: { account_name: string; date: string; value: number }): Promise<void>
-    deleteHistoryEntry(data: { account_name: string; date: string }): Promise<void>
+    deleteHistoryEntry(data: { id: string; account_name: string }): Promise<void>
     exportHistory(): Promise<boolean>
     // Properties
     getProperties(): Promise<import('./types').Property[]>
@@ -86,6 +99,17 @@ interface Window {
     createBankConfig(data: { name: string; dateColumn: string; postDateColumn?: string; descriptionColumn: string; amountType: string; amountColumn?: string; debitColumn?: string; creditColumn?: string; detectionFields: string }): Promise<{ id: string }>
     updateBankConfig(id: string, data: Partial<{ name: string; dateColumn: string; postDateColumn: string; descriptionColumn: string; amountType: string; amountColumn: string; debitColumn: string; creditColumn: string; detectionFields: string }>): Promise<void>
     deleteBankConfig(id: string): Promise<void>
+    // Plaid
+    getPlaidStatus(): Promise<import('./types').PlaidStatus>
+    configurePlaid(data: { clientId: string; secret: string; environment: 'sandbox' | 'production' }): Promise<void>
+    openPlaidLink(): Promise<(import('./types').PlaidSyncResult & { itemId: string }) | null>
+    syncPlaid(itemId?: string): Promise<import('./types').PlaidSyncResult>
+    getPlaidSchedule(): Promise<import('./types').PlaidScheduleStatus>
+    setPlaidSchedule(data: import('./types').PlaidScheduleConfig): Promise<import('./types').PlaidScheduleStatus>
+    onPlaidScheduleChanged(callback: () => void): () => void
+    disconnectPlaid(itemId: string): Promise<void>
+    clearPlaid(): Promise<{ revocationErrors: string[] }>
+    openPlaidDashboard(): Promise<void>
     getAppVersion(): Promise<string>
     platform: string
   }

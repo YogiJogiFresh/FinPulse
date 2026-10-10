@@ -1,11 +1,47 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
 import { initDatabase, saveDatabase } from './database';
 import { registerAllHandlers } from './ipc/index';
+import {
+  registerPlaidScheduleHandlers,
+  startPlaidScheduler,
+  stopPlaidScheduler
+} from './plaid-scheduler';
+import { createAutomaticBackupIfDue, isRestoreInProgress } from './app-backups';
+import { createAppNotification } from './app-notifications';
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+let backupTimer: NodeJS.Timeout | null = null;
+
+function isTrustedRendererUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (isDev) {
+      return parsed.protocol === 'http:' && parsed.hostname === 'localhost' && parsed.port === '5173';
+    }
+    return parsed.protocol === 'file:' && parsed.pathname.endsWith('/client/index.html');
+  } catch {
+    return false;
+  }
+}
+
+function secureIpcHandlers(): void {
+  const handle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = ((channel: string, listener: Parameters<typeof ipcMain.handle>[1]) => {
+    handle(channel, (event, ...args) => {
+      const senderUrl = event.senderFrame?.url || event.sender.getURL();
+      if (!isTrustedRendererUrl(senderUrl)) {
+        throw new Error(`Blocked IPC request from an untrusted renderer.`);
+      }
+      if (isRestoreInProgress()) {
+        throw new Error('FinPulse is restarting to complete a restore.');
+      }
+      return listener(event, ...args);
+    });
+  }) as typeof ipcMain.handle;
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -15,8 +51,21 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
     },
     autoHideMenuBar: true
+  });
+
+  mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
+    callback(false);
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isTrustedRendererUrl(url)) event.preventDefault();
   });
 
   if (isDev) {
@@ -97,13 +146,53 @@ function setupAutoUpdater(): void {
 }
 
 app.whenReady().then(async () => {
+  try {
+    createAutomaticBackupIfDue(new Date(), undefined, false);
+  } catch (error) {
+    console.error('Pre-migration backup failed:', error);
+  }
   await initDatabase();
+  secureIpcHandlers();
   registerAllHandlers();
+  registerPlaidScheduleHandlers();
 
   ipcMain.handle('app:getVersion', () => app.getVersion());
 
   createWindow();
   setupAutoUpdater();
+  startPlaidScheduler();
+  try {
+    createAutomaticBackupIfDue();
+  } catch (error) {
+    console.error('Automatic backup failed:', error);
+    try {
+      createAppNotification({
+        severity: 'error',
+        summary: 'Automatic Backup Failed',
+        detail: error instanceof Error ? error.message : 'Unable to create the daily backup.',
+        source: 'backup_scheduler'
+      });
+    } catch (notificationError) {
+      console.error('Unable to persist backup failure notification:', notificationError);
+    }
+  }
+  backupTimer = setInterval(() => {
+    try {
+      createAutomaticBackupIfDue();
+    } catch (error) {
+      console.error('Automatic backup failed:', error);
+      try {
+        createAppNotification({
+          severity: 'error',
+          summary: 'Automatic Backup Failed',
+          detail: error instanceof Error ? error.message : 'Unable to create the daily backup.',
+          source: 'backup_scheduler'
+        });
+      } catch (notificationError) {
+        console.error('Unable to persist backup failure notification:', notificationError);
+      }
+    }
+  }, 60 * 60 * 1000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -122,5 +211,7 @@ app.on('window-all-closed', () => {
 setInterval(() => saveDatabase(), 30000);
 
 app.on('before-quit', () => {
+  stopPlaidScheduler();
+  if (backupTimer) clearInterval(backupTimer);
   saveDatabase();
 });

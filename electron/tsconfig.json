@@ -6,5 +6,5 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["main.ts", "preload.ts", "database.ts", "ipc/**/*.ts", "sql.js.d.ts"]
+  "include": ["main.ts", "preload.ts", "database.ts", "plaid-secrets.ts", "ipc/**/*.ts", "sql.js.d.ts"]
 }

@@ -12,6 +12,10 @@ $rootPkg = Join-Path $root "package.json"
 $electronPkg = Join-Path $root "electron" "package.json"
 $releaseDir = Join-Path $root "electron" "release"
 
+if (-not $env:CSC_LINK -or -not $env:CSC_KEY_PASSWORD) {
+    throw "Release signing requires CSC_LINK and CSC_KEY_PASSWORD."
+}
+
 # Read current version
 $electronJson = Get-Content $electronPkg -Raw | ConvertFrom-Json
 $currentVersion = $electronJson.version
@@ -80,8 +84,18 @@ if (-not (Test-Path $installer)) {
     exit 1
 }
 
+$signature = Get-AuthenticodeSignature $installer
+if ($signature.Status -ne "Valid") {
+    throw "Installer signature verification failed: $($signature.Status) $($signature.StatusMessage)"
+}
+$expectedPublisher = $env:FINPULSE_SIGNING_SUBJECT
+if ($expectedPublisher -and $signature.SignerCertificate.Subject -ne $expectedPublisher) {
+    throw "Installer signer '$($signature.SignerCertificate.Subject)' does not match FINPULSE_SIGNING_SUBJECT."
+}
+
 Write-Host "`n  Build successful!" -ForegroundColor Green
 Write-Host "  Installer: $installer"
+Write-Host "  Signed by: $($signature.SignerCertificate.Subject)"
 
 # Git commit and push
 Write-Host "`n  Committing version bump..." -ForegroundColor Gray

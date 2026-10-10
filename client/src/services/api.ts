@@ -1,11 +1,11 @@
-import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary, BankConfig } from '@/types'
+import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary, BankConfig, PlaidStatus, PlaidSyncResult, PlaidScheduleConfig, PlaidScheduleStatus, LiabilityMatchSuggestion, AppNotification, CreateAppNotification, BackupRecord } from '@/types'
 
 // Accounts
 export function getAccounts(): Promise<Account[]> {
   return window.api.getAccounts()
 }
 
-export function createAccount(account: Omit<Account, '_id' | 'createdAt' | 'updatedAt'>): Promise<Account> {
+export function createAccount(account: Pick<Account, 'name' | 'type' | 'balance' | 'currency'>): Promise<Account> {
   return window.api.createAccount(account)
 }
 
@@ -57,6 +57,22 @@ export function deleteDebt(id: string): Promise<void> {
 
 export function getDebtTotal(): Promise<DebtTotal> {
   return window.api.getDebtTotal()
+}
+
+export function getLiabilityLinkSuggestions(): Promise<LiabilityMatchSuggestion[]> {
+  return window.api.getLiabilityLinkSuggestions()
+}
+
+export function linkDebtAccount(debtId: string, accountId: string): Promise<void> {
+  return window.api.linkDebtAccount({ debtId, accountId })
+}
+
+export function unlinkDebtAccount(debtId: string): Promise<void> {
+  return window.api.unlinkDebtAccount(debtId)
+}
+
+export function dismissLiabilityLinkSuggestion(debtId: string, accountId: string): Promise<void> {
+  return window.api.dismissLiabilityLinkSuggestion({ debtId, accountId })
 }
 
 // Income
@@ -113,13 +129,51 @@ export function clearByPage(page: string): Promise<void> {
   return window.api.clearByPage(page)
 }
 
+// Backups
+export function getBackups(): Promise<BackupRecord[]> {
+  return window.api.getBackups()
+}
+
+export function createBackup(): Promise<BackupRecord> {
+  return window.api.createBackup()
+}
+
+export function openBackupFolder(): Promise<void> {
+  return window.api.openBackupFolder()
+}
+
+export function restoreBackup(id: string): Promise<BackupRecord> {
+  return window.api.restoreBackup(id)
+}
+
+// Notifications
+export function getAppNotifications(): Promise<AppNotification[]> {
+  return window.api.getAppNotifications()
+}
+
+export function createAppNotification(data: CreateAppNotification): Promise<AppNotification> {
+  return window.api.createAppNotification(data)
+}
+
+export function markAllAppNotificationsRead(): Promise<void> {
+  return window.api.markAllAppNotificationsRead()
+}
+
+export function dismissAppNotification(id: string): Promise<void> {
+  return window.api.dismissAppNotification(id)
+}
+
+export function clearAppNotifications(): Promise<void> {
+  return window.api.clearAppNotifications()
+}
+
+export function onAppNotificationsChanged(callback: () => void): () => void {
+  return window.api.onAppNotificationsChanged(callback)
+}
+
 // History
 export function openAndParseExcel(): Promise<import('@/types').ParsedExcelData | null> {
   return window.api.openAndParseExcel()
-}
-
-export function parseExcelBase64(base64: string): Promise<import('@/types').ParsedExcelData> {
-  return window.api.parseExcelBase64(base64)
 }
 
 export function importHistory(data: import('@/types').ParsedExcelData): Promise<void> {
@@ -130,7 +184,7 @@ export function getAccountHistory(): Promise<import('@/types').AccountHistoryEnt
   return window.api.getAccountHistory()
 }
 
-export function updateHistoryEntry(data: { account_name: string; date: string; value: number; tag: string }): Promise<void> {
+export function updateHistoryEntry(data: { id: string; account_name: string; value: number; tag: string }): Promise<void> {
   return window.api.updateHistoryEntry(data)
 }
 
@@ -146,7 +200,7 @@ export function addHistoryEntry(data: { account_name: string; date: string; valu
   return window.api.addHistoryEntry(data)
 }
 
-export function deleteHistoryEntry(data: { account_name: string; date: string }): Promise<void> {
+export function deleteHistoryEntry(data: { id: string; account_name: string }): Promise<void> {
   return window.api.deleteHistoryEntry(data)
 }
 
@@ -304,4 +358,45 @@ export function updateBankConfig(id: string, data: Partial<{ name: string; dateC
 
 export function deleteBankConfig(id: string): Promise<void> {
   return window.api.deleteBankConfig(id)
+}
+
+// Plaid
+export function getPlaidStatus(): Promise<PlaidStatus> {
+  return window.api.getPlaidStatus()
+}
+
+export function configurePlaid(data: { clientId: string; secret: string; environment: 'sandbox' | 'production' }): Promise<void> {
+  return window.api.configurePlaid(data)
+}
+
+export function openPlaidLink(): Promise<(PlaidSyncResult & { itemId: string }) | null> {
+  return window.api.openPlaidLink()
+}
+
+export function syncPlaid(itemId?: string): Promise<PlaidSyncResult> {
+  return window.api.syncPlaid(itemId)
+}
+
+export function getPlaidSchedule(): Promise<PlaidScheduleStatus> {
+  return window.api.getPlaidSchedule()
+}
+
+export function setPlaidSchedule(data: PlaidScheduleConfig): Promise<PlaidScheduleStatus> {
+  return window.api.setPlaidSchedule(data)
+}
+
+export function onPlaidScheduleChanged(callback: () => void): () => void {
+  return window.api.onPlaidScheduleChanged(callback)
+}
+
+export function disconnectPlaid(itemId: string): Promise<void> {
+  return window.api.disconnectPlaid(itemId)
+}
+
+export function clearPlaid(): Promise<{ revocationErrors: string[] }> {
+  return window.api.clearPlaid()
+}
+
+export function openPlaidDashboard(): Promise<void> {
+  return window.api.openPlaidDashboard()
 }

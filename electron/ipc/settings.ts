@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { getDatabase, saveDatabase, generateId, query } from '../database';
+import { revokeAllPlaidItems } from './plaid';
 
 function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -42,9 +43,13 @@ export function registerSettingsHandlers(): void {
     saveDatabase();
   });
 
-  ipcMain.handle('settings:clearAllData', () => {
+  ipcMain.handle('settings:clearAllData', async () => {
+    const { revocationErrors } = await revokeAllPlaidItems();
+    if (revocationErrors.length > 0) {
+      throw new Error(`Plaid authorization could not be removed. Local data was retained so you can retry: ${revocationErrors.join('; ')}`);
+    }
     const db = getDatabase();
-    const tables = ['income_distributions', 'income_sources', 'debts', 'accounts', 'budget_categories', 'account_history', 'transactions', 'category_rules'];
+    const tables = ['plaid_items', 'liability_match_ignores', 'income_distributions', 'income_sources', 'debts', 'accounts', 'budget_categories', 'account_history', 'transactions', 'category_rules'];
     for (const table of tables) {
       db.run(`DELETE FROM ${table}`);
     }
@@ -53,6 +58,9 @@ export function registerSettingsHandlers(): void {
     db.run("INSERT INTO settings (key, value) VALUES ('theme', 'dark')");
     db.run("INSERT INTO settings (key, value) VALUES ('federal_tax_rate', '22')");
     db.run("INSERT INTO settings (key, value) VALUES ('state_tax_rate', '5')");
+    db.run("INSERT INTO settings (key, value) VALUES ('plaid_auto_sync_first_enabled', 'true')");
+    db.run("INSERT INTO settings (key, value) VALUES ('plaid_auto_sync_last_enabled', 'true')");
+    db.run("INSERT INTO settings (key, value) VALUES ('plaid_auto_sync_time', '09:00')");
     saveDatabase();
   });
 
@@ -60,6 +68,8 @@ export function registerSettingsHandlers(): void {
     const db = getDatabase();
     switch (page) {
       case 'accounts':
+        db.run('UPDATE debts SET linked_account_id = NULL');
+        db.run('DELETE FROM liability_match_ignores');
         db.run('DELETE FROM accounts');
         break;
       case 'income':
@@ -67,6 +77,7 @@ export function registerSettingsHandlers(): void {
         db.run('DELETE FROM income_sources');
         break;
       case 'debts':
+        db.run('DELETE FROM liability_match_ignores');
         db.run('DELETE FROM debts');
         break;
       case 'budget':
