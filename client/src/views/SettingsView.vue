@@ -16,6 +16,12 @@
         Standalone mode uses your own Plaid developer credentials. Credentials and bank access
         tokens are encrypted by your operating system and never exposed to the browser UI after setup.
       </p>
+      <div class="profile-summary" :class="plaidStatus.profileKind">
+        <strong>{{ plaidStatus.profileDisplayName }} profile</strong>
+        <span>
+          Uses separate local data and permits Plaid {{ plaidStatus.requiredEnvironment }} only.
+        </span>
+      </div>
 
       <div v-if="!plaidStatus.secureStorageAvailable" class="plaid-warning">
         <i class="pi pi-exclamation-triangle"></i>
@@ -23,11 +29,67 @@
       </div>
 
       <div v-else class="plaid-setup">
-        <template v-if="!plaidStatus.configured">
+        <div v-if="plaidStatus.environmentMismatch" class="plaid-warning mismatch-warning">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>Incompatible Plaid credentials detected.</strong>
+            This {{ plaidStatus.profileDisplayName }} profile requires
+            {{ plaidStatus.requiredEnvironment }}, but its stored credentials are for
+            {{ plaidStatus.environment }}. Clear the incompatible local copy before configuring
+            this profile.
+          </div>
+          <Button
+            v-if="!confirmingPlaidClear"
+            label="Clear Incompatible Plaid Data"
+            icon="pi pi-trash"
+            severity="danger"
+            outlined
+            @click="confirmingPlaidClear = true"
+          />
+          <div v-else class="confirm-group">
+            <span class="confirm-warning">
+              Disconnect these Items at Plaid and remove the incompatible local credentials?
+            </span>
+            <Button
+              label="Disconnect & Clear"
+              icon="pi pi-trash"
+              severity="danger"
+              :loading="plaidClearing"
+              @click="clearPlaidConfig"
+            />
+            <Button
+              label="Cancel"
+              severity="secondary"
+              outlined
+              @click="confirmingPlaidClear = false"
+            />
+          </div>
+          <div v-if="forcePlaidClearAvailable" class="force-clear-warning">
+            <span>
+              Plaid revocation failed. Remove only this profile's local copy after manually removing
+              the Items in the Plaid Dashboard.
+            </span>
+            <Button
+              label="Remove Local Copy"
+              icon="pi pi-trash"
+              severity="danger"
+              outlined
+              :loading="plaidClearing"
+              @click="forceClearPlaidConfig"
+            />
+          </div>
+        </div>
+        <template v-else-if="!plaidStatus.configured">
           <div class="plaid-steps">
             <div><strong>1.</strong> Create or sign in to your Plaid developer account.</div>
-            <div><strong>2.</strong> Open <b>Team Settings → Keys</b> and copy your Client ID and Sandbox secret.</div>
-            <div><strong>3.</strong> Save them here, then connect a Sandbox institution.</div>
+            <div>
+              <strong>2.</strong> Open <b>Team Settings → Keys</b> and copy your Client ID and
+              {{ plaidStatus.requiredEnvironment === 'production' ? 'Production' : 'Sandbox' }} secret.
+            </div>
+            <div>
+              <strong>3.</strong> Save them here, then connect a
+              {{ plaidStatus.requiredEnvironment === 'production' ? 'Production' : 'Sandbox' }} institution.
+            </div>
           </div>
 
           <div class="plaid-actions">
@@ -51,7 +113,14 @@
             </div>
             <div class="form-field">
               <label>Environment</label>
-              <Select v-model="plaidForm.environment" :options="plaidEnvironments" optionLabel="label" optionValue="value" />
+              <Select
+                v-model="plaidForm.environment"
+                :options="plaidEnvironments"
+                optionLabel="label"
+                optionValue="value"
+                disabled
+              />
+              <small class="form-hint">Fixed by the active FinPulse profile.</small>
             </div>
             <Button
               label="Save & Verify"
@@ -514,7 +583,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion, getBankConfigs, createBankConfig, updateBankConfig, deleteBankConfig, getPlaidStatus, configurePlaid, openPlaidLink, syncPlaid, getPlaidSchedule, setPlaidSchedule, onPlaidScheduleChanged, disconnectPlaid, clearPlaid, openPlaidDashboard, getBackups, createBackup, openBackupFolder, restoreBackup } from '@/services/api'
+import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion, getBankConfigs, createBankConfig, updateBankConfig, deleteBankConfig, getPlaidStatus, configurePlaid, openPlaidLink, syncPlaid, getPlaidSchedule, setPlaidSchedule, onPlaidScheduleChanged, disconnectPlaid, clearPlaid, clearPlaidLocal, openPlaidDashboard, getBackups, createBackup, openBackupFolder, restoreBackup } from '@/services/api'
 import type { BackupRecord, BankConfig, PlaidScheduleStatus, PlaidStatus, PlaidSyncResult } from '@/types'
 import type { ToastMessageOptions } from 'primevue/toast'
 import Button from 'primevue/button'
@@ -543,6 +612,10 @@ const appVersion = ref('...')
 const plaidStatus = ref<PlaidStatus>({
   configured: false,
   environment: null,
+  environmentMismatch: false,
+  requiredEnvironment: 'sandbox',
+  profileKind: 'development',
+  profileDisplayName: 'Development / Sandbox',
   secureStorageAvailable: true,
   items: []
 })
@@ -561,6 +634,7 @@ const plaidSyncing = ref(false)
 const plaidClearing = ref(false)
 const confirmingPlaidClear = ref(false)
 const confirmingPlaidRemoval = ref('')
+const forcePlaidClearAvailable = ref(false)
 const plaidScheduleSaving = ref(false)
 const plaidSchedule = ref<PlaidScheduleStatus>({
   firstDayEnabled: true,
@@ -646,7 +720,7 @@ function formatBytes(value: number): string {
 
 async function refreshPlaidStatus() {
   plaidStatus.value = await getPlaidStatus()
-  if (plaidStatus.value.environment) plaidForm.value.environment = plaidStatus.value.environment
+  plaidForm.value.environment = plaidStatus.value.requiredEnvironment
 }
 
 async function refreshPlaidSchedule() {
@@ -798,11 +872,20 @@ async function removePlaid(itemId: string) {
 async function clearPlaidConfig() {
   plaidClearing.value = true
   try {
+    const wasMismatch = plaidStatus.value.environmentMismatch
     const result = await clearPlaid()
     confirmingPlaidClear.value = false
     await refreshPlaidStatus()
     if (result.revocationErrors.length === 0) {
-      plaidForm.value = { clientId: '', secret: '', environment: 'sandbox' }
+      forcePlaidClearAvailable.value = false
+      plaidForm.value = {
+        clientId: '',
+        secret: '',
+        environment: plaidStatus.value.requiredEnvironment
+      }
+    }
+    if (wasMismatch && result.revocationErrors.length > 0) {
+      forcePlaidClearAvailable.value = true
     }
     toast.add({
       severity: result.revocationErrors.length > 0 ? 'warn' : 'success',
@@ -814,6 +897,26 @@ async function clearPlaidConfig() {
     })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Unable to Clear Plaid', detail: errorMessage(error), life: 6000 })
+  } finally {
+    plaidClearing.value = false
+  }
+}
+
+async function forceClearPlaidConfig() {
+  plaidClearing.value = true
+  try {
+    await clearPlaidLocal()
+    forcePlaidClearAvailable.value = false
+    confirmingPlaidClear.value = false
+    await refreshPlaidStatus()
+    toast.add({
+      severity: 'warn',
+      summary: 'Local Plaid Copy Removed',
+      detail: 'The local credentials were removed without remote revocation. Confirm the Items are removed in the Plaid Dashboard.',
+      life: 8000
+    })
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Unable to Clear Local Plaid Data', detail: errorMessage(error), life: 6000 })
   } finally {
     plaidClearing.value = false
   }
@@ -960,7 +1063,7 @@ onMounted(async () => {
     plaidStatus.value = plaid
     plaidSchedule.value = schedule
     backups.value = savedBackups
-    if (plaid.environment) plaidForm.value.environment = plaid.environment
+    plaidForm.value.environment = plaid.requiredEnvironment
     await loadBankConfigs()
     removePlaidScheduleListener = onPlaidScheduleChanged(() => {
       void refreshPlaidSchedule()
@@ -1043,6 +1146,41 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin: 1rem 0;
+}
+
+.profile-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin: 0.75rem 0 1rem;
+  color: #cbd5e1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.profile-summary.development {
+  border-color: #b45309;
+}
+
+.profile-summary.production {
+  border-color: #15803d;
+}
+
+.mismatch-warning {
+  align-items: center;
+}
+
+.force-clear-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding-top: 0.75rem;
+  border-top: 1px solid #b45309;
 }
 
 .backup-list {

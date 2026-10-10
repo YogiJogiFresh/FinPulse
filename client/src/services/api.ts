@@ -1,4 +1,4 @@
-import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary, BankConfig, PlaidStatus, PlaidSyncResult, PlaidScheduleConfig, PlaidScheduleStatus, LiabilityMatchSuggestion, AppNotification, CreateAppNotification, BackupRecord } from '@/types'
+import type { Account, BudgetCategory, BudgetProgress, Debt, DebtTotal, IncomeSource, IncomeDistribution, Transaction, TransactionFilters, TransactionImportResult, CategoryRule, MonthlyCategorySummary, BankConfig, PlaidStatus, PlaidSyncResult, PlaidScheduleConfig, PlaidScheduleStatus, LiabilityMatchSuggestion, AppNotification, CreateAppNotification, BackupRecord, RuntimeProfileInfo } from '@/types'
 
 // Accounts
 export function getAccounts(): Promise<Account[]> {
@@ -213,6 +213,10 @@ export function getAppVersion(): Promise<string> {
   return window.api.getAppVersion()
 }
 
+export function getRuntimeProfile(): Promise<RuntimeProfileInfo> {
+  return window.api.getRuntimeProfile()
+}
+
 // Properties
 import type { Property, PropertyDetail, PropertyExpense, PropertyContractor } from '@/types'
 
@@ -395,6 +399,10 @@ export function disconnectPlaid(itemId: string): Promise<void> {
 
 export function clearPlaid(): Promise<{ revocationErrors: string[] }> {
   return window.api.clearPlaid()
+}
+
+export function clearPlaidLocal(): Promise<void> {
+  return window.api.clearPlaidLocal()
 }
 
 export function openPlaidDashboard(): Promise<void> {

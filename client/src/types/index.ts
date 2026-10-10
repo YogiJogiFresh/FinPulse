@@ -228,8 +228,18 @@ export interface PlaidItem {
 export interface PlaidStatus {
   configured: boolean
   environment: 'sandbox' | 'production' | null
+  environmentMismatch: boolean
+  requiredEnvironment: 'sandbox' | 'production'
+  profileKind: 'development' | 'production'
+  profileDisplayName: string
   secureStorageAvailable: boolean
   items: PlaidItem[]
+}
+
+export interface RuntimeProfileInfo {
+  kind: 'development' | 'production'
+  displayName: string
+  requiredPlaidEnvironment: 'sandbox' | 'production'
 }
 
 export interface PlaidSyncResult {

@@ -2,6 +2,8 @@ import { BrowserWindow, ipcMain, Notification, powerMonitor } from 'electron';
 import { createAppNotification } from './app-notifications';
 import { query } from './database';
 import { isPlaidSyncInProgress, runPlaidSync } from './ipc/plaid';
+import { readPlaidSecrets } from './plaid-secrets';
+import { getRuntimeProfile } from './runtime-profile';
 import {
   findDueScheduleSlot,
   getPlaidScheduleConfig,
@@ -31,6 +33,13 @@ async function evaluateSchedule(now = new Date()): Promise<void> {
 
     const itemCount = Number(query('SELECT COUNT(*) AS count FROM plaid_items')[0]?.count || 0);
     if (itemCount === 0) return;
+    let storedEnvironment;
+    try {
+      storedEnvironment = readPlaidSecrets().environment;
+    } catch {
+      return;
+    }
+    if (storedEnvironment !== getRuntimeProfile().requiredPlaidEnvironment) return;
     if (isPlaidSyncInProgress()) return;
 
     const trigger = now.getTime() - slot.at.getTime() <= 90_000 ? 'scheduled' : 'catch_up';

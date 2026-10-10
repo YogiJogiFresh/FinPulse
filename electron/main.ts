@@ -10,8 +10,10 @@ import {
 } from './plaid-scheduler';
 import { createAutomaticBackupIfDue, isRestoreInProgress } from './app-backups';
 import { createAppNotification } from './app-notifications';
+import { configureRuntimeProfile, getRuntimeProfile } from './runtime-profile';
 
 const isDev = !app.isPackaged;
+const runtimeProfile = configureRuntimeProfile();
 let mainWindow: BrowserWindow | null = null;
 let backupTimer: NodeJS.Timeout | null = null;
 
@@ -45,6 +47,7 @@ function secureIpcHandlers(): void {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
+    title: runtimeProfile.appName,
     width: 1200,
     height: 800,
     webPreferences: {
@@ -157,6 +160,11 @@ app.whenReady().then(async () => {
   registerPlaidScheduleHandlers();
 
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('app:getRuntimeProfile', () => ({
+    kind: runtimeProfile.kind,
+    displayName: runtimeProfile.displayName,
+    requiredPlaidEnvironment: runtimeProfile.requiredPlaidEnvironment
+  }));
 
   createWindow();
   setupAutoUpdater();

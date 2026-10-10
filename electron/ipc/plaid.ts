@@ -17,8 +17,11 @@ import {
   savePlaidCredentials
 } from '../plaid-secrets';
 import { clearPlaidScheduleState, type PlaidSyncTrigger } from '../plaid-schedule-settings';
-
-type PlaidEnvironment = 'sandbox' | 'production';
+import {
+  assertPlaidEnvironment,
+  getRuntimeProfile,
+  type PlaidEnvironment
+} from '../runtime-profile';
 
 export interface PlaidSyncResult {
   added: number;
@@ -80,6 +83,7 @@ function getClient(): PlaidApi {
   if (!credentials.clientId || !credentials.secret || !credentials.environment) {
     throw new Error('Configure Plaid credentials in Settings first.');
   }
+  assertPlaidEnvironment(credentials.environment);
   return buildClient(credentials.clientId, credentials.secret, credentials.environment);
 }
 
@@ -232,11 +236,25 @@ async function exchangeAndSync(data: PlaidLinkResult): Promise<{
   }
 }
 
-export async function revokeAllPlaidItems(): Promise<{ revocationErrors: string[] }> {
+export async function revokeAllPlaidItems(
+  allowStoredEnvironment = false
+): Promise<{ revocationErrors: string[] }> {
   const credentials = readPlaidSecrets();
   const itemIds = query('SELECT item_id FROM plaid_items').map(row => row.item_id as string);
   const revocationErrors: string[] = [];
-  const client = itemIds.length > 0 ? getClient() : null;
+  let client: PlaidApi | null = null;
+  if (itemIds.length > 0) {
+    if (
+      allowStoredEnvironment &&
+      credentials.clientId &&
+      credentials.secret &&
+      credentials.environment
+    ) {
+      client = buildClient(credentials.clientId, credentials.secret, credentials.environment);
+    } else {
+      client = getClient();
+    }
+  }
 
   for (const itemId of itemIds) {
     const accessToken = credentials.accessTokens?.[itemId];
@@ -732,10 +750,18 @@ export function registerPlaidHandlers(): void {
   ipcMain.handle('plaid:getStatus', () => {
     let configured = false;
     let environment: PlaidEnvironment | null = null;
+    let environmentMismatch = false;
+    const profile = getRuntimeProfile();
     try {
       const credentials = readPlaidSecrets();
-      configured = Boolean(credentials.clientId && credentials.secret);
       environment = credentials.environment || null;
+      environmentMismatch = Boolean(
+        credentials.clientId &&
+        credentials.secret &&
+        environment &&
+        environment !== profile.requiredPlaidEnvironment
+      );
+      configured = Boolean(credentials.clientId && credentials.secret) && !environmentMismatch;
     } catch {
       configured = false;
     }
@@ -743,6 +769,10 @@ export function registerPlaidHandlers(): void {
     return {
       configured,
       environment,
+      environmentMismatch,
+      requiredEnvironment: profile.requiredPlaidEnvironment,
+      profileKind: profile.kind,
+      profileDisplayName: profile.displayName,
       secureStorageAvailable: safeStorage.isEncryptionAvailable(),
       items: query(
         `SELECT item_id AS itemId, institution_name AS institutionName,
@@ -763,6 +793,7 @@ export function registerPlaidHandlers(): void {
     if (data.environment !== 'sandbox' && data.environment !== 'production') {
       throw new Error('Unsupported Plaid environment.');
     }
+    assertPlaidEnvironment(data.environment);
     const linkedItems = query('SELECT COUNT(*) AS count FROM plaid_items')[0]?.count || 0;
     const currentEnvironment = readPlaidSecrets().environment;
     if (linkedItems > 0 && currentEnvironment && currentEnvironment !== data.environment) {
@@ -816,8 +847,22 @@ export function registerPlaidHandlers(): void {
   });
 
   ipcMain.handle('plaid:clear', async () => {
+    const profile = getRuntimeProfile();
+    const credentials = readPlaidSecrets();
+    if (credentials.environment && credentials.environment !== profile.requiredPlaidEnvironment) {
+      const result = await revokeAllPlaidItems(true);
+      if (result.revocationErrors.length === 0) clearPlaidScheduleState();
+      return result;
+    }
     const result = await revokeAllPlaidItems();
     if (result.revocationErrors.length === 0) clearPlaidScheduleState();
     return result;
+  });
+
+  ipcMain.handle('plaid:clearLocal', () => {
+    getDatabase().run('DELETE FROM plaid_items');
+    clearPlaidSecrets();
+    clearPlaidScheduleState();
+    saveDatabase();
   });
 }

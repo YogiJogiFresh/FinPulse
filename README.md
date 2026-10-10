@@ -18,10 +18,30 @@ A standalone desktop application for tracking personal finances and managing bud
 - **Database:** SQLite (via sql.js, stored in `%APPDATA%/FinPulse/finpulse.db`)
 - **IPC:** Electron contextBridge (no HTTP server needed)
 
+## Development and Production Profiles
+
+FinPulse isolates development and packaged Production data before Electron initializes any local
+storage:
+
+- Development uses `%APPDATA%\FinPulse-Dev` and permits Plaid Sandbox credentials only.
+- The packaged app uses `%APPDATA%\FinPulse` and permits Plaid Production credentials only.
+
+The first development start after this separation moves the legacy
+`%APPDATA%\finpulse-electron` profile to `%APPDATA%\FinPulse-Dev` when the Development target does
+not already exist. This keeps the existing Sandbox database, encrypted Plaid tokens, notifications,
+and backups in Development. Production does not copy the legacy profile and starts with its own
+clean data.
+
+If both the legacy and Development directories already exist, FinPulse leaves both untouched and
+logs a warning instead of merging or overwriting data. Backups and restores remain inside the
+active profile and cannot cross the Development/Production boundary through the app.
+
 ## Plaid Bank Sync
 
 FinPulse supports standalone, bring-your-own-credentials Plaid integration. Each user supplies
 credentials from their own Plaid developer account; FinPulse does not require a hosted backend.
+The active runtime profile fixes the allowed Plaid environment: Sandbox in Development and
+Production in the packaged app.
 
 1. Create a Plaid developer account and open **Team Settings → Keys** in the
    [Plaid Dashboard](https://dashboard.plaid.com/team/keys).

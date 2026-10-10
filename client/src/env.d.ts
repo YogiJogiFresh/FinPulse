@@ -9,6 +9,7 @@ declare module '*.vue' {
 interface Window {
   api: {
     getAccounts(): Promise<import('./types').Account[]>
+    getRuntimeProfile(): Promise<import('./types').RuntimeProfileInfo>
     createAccount(data: any): Promise<import('./types').Account>
     updateAccount(data: any): Promise<import('./types').Account>
     deleteAccount(id: string): Promise<void>
@@ -109,6 +110,7 @@ interface Window {
     onPlaidScheduleChanged(callback: () => void): () => void
     disconnectPlaid(itemId: string): Promise<void>
     clearPlaid(): Promise<{ revocationErrors: string[] }>
+    clearPlaidLocal(): Promise<void>
     openPlaidDashboard(): Promise<void>
     getAppVersion(): Promise<string>
     platform: string

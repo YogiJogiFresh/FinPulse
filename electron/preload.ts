@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('api', {
   // App
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+  getRuntimeProfile: () => ipcRenderer.invoke('app:getRuntimeProfile'),
 
   // Accounts
   getAccounts: () => ipcRenderer.invoke('accounts:getAll'),
@@ -133,6 +134,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   disconnectPlaid: (itemId: string) => ipcRenderer.invoke('plaid:disconnect', itemId),
   clearPlaid: () => ipcRenderer.invoke('plaid:clear'),
+  clearPlaidLocal: () => ipcRenderer.invoke('plaid:clearLocal'),
   openPlaidDashboard: () => ipcRenderer.invoke('plaid:openDashboard'),
 
   // Platform info
