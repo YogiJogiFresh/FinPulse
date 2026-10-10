@@ -1,15 +1,13 @@
 {
   "name": "finpulse",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "description": "Personal finance dashboard and budget tracker — standalone desktop app",
   "private": true,
   "scripts": {
     "dev:client": "cd client && npm run dev",
     "dev": "concurrently -n client,electron -c cyan,green \"npm run dev:client\" \"wait-on http://localhost:5173 && cd electron && npm run dev\"",
-    
     "build:client": "cd client && npm run build",
     "build": "npm run build:client",
-
     "electron:dev": "cd electron && npm run dev",
     "electron:build": "npm run build && cd electron && npm run build",
     "electron:release": "pwsh -ExecutionPolicy Bypass -File scripts/release.ps1",
