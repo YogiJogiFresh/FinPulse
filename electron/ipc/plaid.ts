@@ -22,6 +22,7 @@ import {
   getRuntimeProfile,
   type PlaidEnvironment
 } from '../runtime-profile';
+import { startPlaidLinkPage } from './plaid-link-page';
 
 export interface PlaidSyncResult {
   added: number;
@@ -114,11 +115,12 @@ interface PlaidLinkResult {
   institutionName?: string;
 }
 
-function openPlaidLink(linkToken: string): Promise<PlaidLinkResult | null> {
+async function openPlaidLink(linkToken: string): Promise<PlaidLinkResult | null> {
   if (!/^link-(sandbox|production)-/.test(linkToken) || linkToken.length > 512) {
     throw new Error('Plaid returned an invalid Link token.');
   }
 
+  const page = await startPlaidLinkPage(linkToken);
   return new Promise((resolve, reject) => {
     let settled = false;
     const parent = BrowserWindow.getFocusedWindow() || undefined;
@@ -161,43 +163,17 @@ function openPlaidLink(linkToken: string): Promise<PlaidLinkResult | null> {
       }
     });
     linkWindow.on('closed', () => {
+      page.close();
       if (!settled) resolve(null);
     });
     linkWindow.webContents.on('did-fail-load', (_event, _code, description) => {
       if (settled) return;
       settled = true;
+      page.close();
       reject(new Error(`Unable to load Plaid Link: ${description}`));
     });
 
-    const token = JSON.stringify(linkToken);
-    const html = `<!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta http-equiv="Content-Security-Policy"
-                content="default-src 'none'; script-src https://cdn.plaid.com 'unsafe-inline'; frame-src https://*.plaid.com; connect-src https://*.plaid.com; img-src data: https://*.plaid.com; style-src 'unsafe-inline'">
-          <title>Connect an institution</title>
-        </head>
-        <body>
-          <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-          <script>
-            const handler = Plaid.create({
-              token: ${token},
-              onSuccess: (publicToken, metadata) => {
-                const params = new URLSearchParams({
-                  public_token: publicToken,
-                  institution_id: metadata.institution?.institution_id || '',
-                  institution_name: metadata.institution?.name || ''
-                });
-                location.href = 'finpulse-plaid://success?' + params.toString();
-              },
-              onExit: () => { location.href = 'finpulse-plaid://exit'; }
-            });
-            handler.open();
-          </script>
-        </body>
-      </html>`;
-    linkWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    void linkWindow.loadURL(page.url);
     linkWindow.once('ready-to-show', () => linkWindow.show());
   });
 }

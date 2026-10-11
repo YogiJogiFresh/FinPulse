@@ -10,6 +10,7 @@
     "test:notifications": "tsc && electron tests/notification-storage.test.js",
     "test:backups": "tsc && electron tests/backup-storage.test.js",
     "test:profiles": "tsc && electron tests/runtime-profile.test.js",
+    "test:plaid-link": "tsc && node --test tests/plaid-link-page.test.js",
     "start": "electron ."
   },
   "dependencies": {
