@@ -104,6 +104,7 @@ interface Window {
     getPlaidStatus(): Promise<import('./types').PlaidStatus>
     configurePlaid(data: { clientId: string; secret: string; environment: 'sandbox' | 'production' }): Promise<void>
     openPlaidLink(): Promise<(import('./types').PlaidSyncResult & { itemId: string }) | null>
+    cancelPlaidLink(): Promise<boolean>
     syncPlaid(itemId?: string): Promise<import('./types').PlaidSyncResult>
     getPlaidSchedule(): Promise<import('./types').PlaidScheduleStatus>
     setPlaidSchedule(data: import('./types').PlaidScheduleConfig): Promise<import('./types').PlaidScheduleStatus>

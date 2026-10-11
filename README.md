@@ -52,9 +52,11 @@ Production in the packaged app.
 
 Plaid credentials and access tokens are encrypted using Electron `safeStorage` and remain on the
 local machine. They are never stored in the SQLite database or exposed back to the renderer.
-Plaid Link runs in a separate sandboxed window without the FinPulse preload API. Imported balances
-and transactions are stored in the local FinPulse database. Clearing Plaid revokes each Item before
-deleting its local token; failed revocations retain the token so removal can be retried.
+**Connect Institution** opens Plaid Hosted Link in the default system browser. FinPulse waits up to
+two minutes for completion and can stop waiting with **Cancel**; cancelling does not close the
+external browser tab. Imported balances and transactions are stored in the local FinPulse database.
+Clearing Plaid revokes each Item before deleting its local token; failed revocations retain the token
+so removal can be retried.
 
 Each successful sync records the latest balance snapshot for every linked account on the current
 local calendar day. Syncing again on the same day updates that day's point; syncing on a later day
@@ -103,7 +105,8 @@ Monthly Debt Payments combines fixed loan payments with each card's calculated p
 > [!WARNING]
 > A distributed desktop app cannot protect an API secret as strongly as a hosted backend. This mode
 > is intended for personal use where each user owns the Plaid credentials. Live institutions require
-> Plaid Production approval, and OAuth-based institutions may require additional redirect setup.
+> Plaid Production approval. OAuth and non-OAuth authentication are handled by Plaid Hosted Link in
+> the user's default browser.
 
 ## Notification History
 

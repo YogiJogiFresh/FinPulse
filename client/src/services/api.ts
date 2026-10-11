@@ -377,6 +377,10 @@ export function openPlaidLink(): Promise<(PlaidSyncResult & { itemId: string }) 
   return window.api.openPlaidLink()
 }
 
+export function cancelPlaidLink(): Promise<boolean> {
+  return window.api.cancelPlaidLink()
+}
+
 export function syncPlaid(itemId?: string): Promise<PlaidSyncResult> {
   return window.api.syncPlaid(itemId)
 }

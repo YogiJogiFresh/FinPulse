@@ -44,6 +44,7 @@
             icon="pi pi-trash"
             severity="danger"
             outlined
+            :disabled="plaidLinking"
             @click="confirmingPlaidClear = true"
           />
           <div v-else class="confirm-group">
@@ -158,16 +159,27 @@
 
         <div v-if="plaidStatus.configured" class="plaid-connections">
           <div class="plaid-connection-toolbar">
-            <Button label="Connect Institution" icon="pi pi-plus" :loading="plaidLinking" @click="connectPlaid" />
+            <Button label="Connect Institution" icon="pi pi-plus" :disabled="plaidLinking" @click="connectPlaid" />
             <Button
               label="Sync All"
               icon="pi pi-sync"
               severity="secondary"
               outlined
               :loading="plaidSyncing"
-              :disabled="plaidStatus.items.length === 0"
+              :disabled="plaidStatus.items.length === 0 || plaidLinking"
               @click="syncAllPlaid"
             />
+          </div>
+
+          <div v-if="plaidLinking" class="plaid-link-waiting">
+            <div>
+              <strong>Complete the connection in your browser</strong>
+              <p>
+                FinPulse is waiting for Plaid for up to
+                {{ plaidLinkSeconds }} second{{ plaidLinkSeconds === 1 ? '' : 's' }}.
+              </p>
+            </div>
+            <Button label="Cancel" severity="secondary" outlined :loading="plaidCancelling" @click="cancelPlaidConnection" />
           </div>
 
           <div v-if="plaidStatus.environment === 'sandbox'" class="sandbox-hint">
@@ -583,7 +595,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion, getBankConfigs, createBankConfig, updateBankConfig, deleteBankConfig, getPlaidStatus, configurePlaid, openPlaidLink, syncPlaid, getPlaidSchedule, setPlaidSchedule, onPlaidScheduleChanged, disconnectPlaid, clearPlaid, clearPlaidLocal, openPlaidDashboard, getBackups, createBackup, openBackupFolder, restoreBackup } from '@/services/api'
+import { getSettings, setSettingsBatch, clearAllData, clearByPage, exportHistory, getAppVersion, getBankConfigs, createBankConfig, updateBankConfig, deleteBankConfig, getPlaidStatus, configurePlaid, openPlaidLink, cancelPlaidLink, syncPlaid, getPlaidSchedule, setPlaidSchedule, onPlaidScheduleChanged, disconnectPlaid, clearPlaid, clearPlaidLocal, openPlaidDashboard, getBackups, createBackup, openBackupFolder, restoreBackup } from '@/services/api'
 import type { BackupRecord, BankConfig, PlaidScheduleStatus, PlaidStatus, PlaidSyncResult } from '@/types'
 import type { ToastMessageOptions } from 'primevue/toast'
 import Button from 'primevue/button'
@@ -630,6 +642,8 @@ const plaidEnvironments = [
 ]
 const plaidBusy = ref(false)
 const plaidLinking = ref(false)
+const plaidCancelling = ref(false)
+const plaidLinkSeconds = ref(120)
 const plaidSyncing = ref(false)
 const plaidClearing = ref(false)
 const confirmingPlaidClear = ref(false)
@@ -648,6 +662,7 @@ const plaidSchedule = ref<PlaidScheduleStatus>({
   nextRunAt: null
 })
 let removePlaidScheduleListener: (() => void) | null = null
+let plaidLinkCountdown: ReturnType<typeof setInterval> | null = null
 
 const clearOptions = [
   { key: 'accounts', label: 'Accounts', description: 'Delete all accounts' },
@@ -765,15 +780,32 @@ async function savePlaidConfig() {
 
 async function connectPlaid() {
   plaidLinking.value = true
+  plaidLinkSeconds.value = 120
+  plaidLinkCountdown = setInterval(() => {
+    if (plaidLinkSeconds.value > 0) plaidLinkSeconds.value -= 1
+  }, 1000)
   try {
     const result = await openPlaidLink()
     if (!result) return
     await refreshPlaidStatus()
     showSyncResult('Institution Connected', result)
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Unable to Open Plaid', detail: errorMessage(error), life: 6000 })
+    toast.add({ severity: 'error', summary: 'Plaid Connection Failed', detail: errorMessage(error), life: 6000 })
   } finally {
+    if (plaidLinkCountdown) clearInterval(plaidLinkCountdown)
+    plaidLinkCountdown = null
     plaidLinking.value = false
+    plaidCancelling.value = false
+  }
+}
+
+async function cancelPlaidConnection() {
+  plaidCancelling.value = true
+  try {
+    await cancelPlaidLink()
+  } catch (error) {
+    plaidCancelling.value = false
+    toast.add({ severity: 'error', summary: 'Unable to Cancel Plaid', detail: errorMessage(error), life: 6000 })
   }
 }
 
@@ -1078,6 +1110,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   removePlaidScheduleListener?.()
+  if (plaidLinkCountdown) clearInterval(plaidLinkCountdown)
+  if (plaidLinking.value) void cancelPlaidLink()
 })
 </script>
 
@@ -1288,6 +1322,24 @@ onUnmounted(() => {
 
 .sandbox-hint code {
   color: #7dd3fc;
+}
+
+.plaid-link-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  color: #e2e8f0;
+  background: rgb(2 132 199 / 14%);
+  border: 1px solid #0369a1;
+  border-radius: 6px;
+}
+
+.plaid-link-waiting p {
+  margin: 4px 0 0;
+  color: #bae6fd;
+  font-size: 0.85rem;
 }
 
 .plaid-connections {

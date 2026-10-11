@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, safeStorage, shell } from 'electron';
+import { ipcMain, safeStorage, shell } from 'electron';
 import {
   Configuration,
   CountryCode,
@@ -22,7 +22,13 @@ import {
   getRuntimeProfile,
   type PlaidEnvironment
 } from '../runtime-profile';
-import { isPlaidOAuthPopup, startPlaidLinkPage } from './plaid-link-page';
+import {
+  HOSTED_LINK_TIMEOUT_MS,
+  isPlaidHostedLinkUrl,
+  waitForHostedLink,
+  type PlaidHostedLinkResult
+} from './plaid-hosted-link';
+import { formatPlaidTransactionBank } from './plaid-labels';
 
 export interface PlaidSyncResult {
   added: number;
@@ -54,6 +60,7 @@ interface BalanceSnapshot {
 }
 
 let syncInProgress = false;
+let activeLinkAttempt: AbortController | null = null;
 const MAX_SYNC_DETAIL_ITEMS = 25;
 
 export function isPlaidSyncInProgress(): boolean {
@@ -98,119 +105,36 @@ function getClientUserId(): string {
   return value;
 }
 
-async function createLinkToken(): Promise<string> {
-  const response = await getClient().linkTokenCreate({
+async function createHostedLinkSession(): Promise<{
+  client: PlaidApi;
+  linkToken: string;
+  hostedLinkUrl: string;
+}> {
+  const client = getClient();
+  const response = await client.linkTokenCreate({
     user: { client_user_id: getClientUserId() },
     client_name: 'FinPulse',
     products: [Products.Transactions],
     country_codes: [CountryCode.Us],
-    language: 'en'
+    language: 'en',
+    hosted_link: {
+      is_mobile_app: false,
+      url_lifetime_seconds: HOSTED_LINK_TIMEOUT_MS / 1000
+    }
   });
-  return response.data.link_token;
-}
-
-interface PlaidLinkResult {
-  publicToken: string;
-  institutionId?: string;
-  institutionName?: string;
-}
-
-async function openPlaidLink(linkToken: string): Promise<PlaidLinkResult | null> {
+  const linkToken = response.data.link_token;
+  const hostedLinkUrl = response.data.hosted_link_url || '';
   if (!/^link-(sandbox|production)-/.test(linkToken) || linkToken.length > 512) {
     throw new Error('Plaid returned an invalid Link token.');
   }
-
-  const page = await startPlaidLinkPage(linkToken);
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const parent = BrowserWindow.getFocusedWindow() || undefined;
-    const linkWindow = new BrowserWindow({
-      parent,
-      modal: Boolean(parent),
-      width: 520,
-      height: 760,
-      show: false,
-      autoHideMenuBar: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        sandbox: true,
-        webSecurity: true
-      }
-    });
-
-    linkWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
-      callback(false);
-    });
-    linkWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
-      if (!isPlaidOAuthPopup(url, frameName)) return { action: 'deny' };
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          parent: linkWindow,
-          width: 800,
-          height: 600,
-          autoHideMenuBar: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            sandbox: true,
-            webSecurity: true
-          }
-        }
-      };
-    });
-    linkWindow.webContents.on('did-create-window', (oauthWindow) => {
-      oauthWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-      oauthWindow.webContents.on('will-navigate', (event, targetUrl) => {
-        try {
-          if (new URL(targetUrl).protocol === 'https:') return;
-        } catch {
-          // Block malformed navigation targets.
-        }
-        event.preventDefault();
-      });
-    });
-    linkWindow.webContents.on('will-navigate', (event, targetUrl) => {
-      if (!targetUrl.startsWith('finpulse-plaid://')) {
-        event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      const url = new URL(targetUrl);
-      settled = true;
-      linkWindow.close();
-      if (url.hostname === 'success') {
-        resolve({
-          publicToken: url.searchParams.get('public_token') || '',
-          institutionId: url.searchParams.get('institution_id') || undefined,
-          institutionName: url.searchParams.get('institution_name') || undefined
-        });
-      } else {
-        resolve(null);
-      }
-    });
-    linkWindow.on('closed', () => {
-      page.close();
-      if (!settled) resolve(null);
-    });
-    linkWindow.webContents.on('did-fail-load', (_event, _code, description) => {
-      if (settled) return;
-      settled = true;
-      page.close();
-      reject(new Error(`Unable to load Plaid Link: ${description}`));
-    });
-
-    void linkWindow.loadURL(page.url);
-    linkWindow.once('ready-to-show', () => linkWindow.show());
-  });
+  if (!isPlaidHostedLinkUrl(hostedLinkUrl)) {
+    throw new Error('Plaid returned an invalid Hosted Link URL.');
+  }
+  return { client, linkToken, hostedLinkUrl };
 }
 
-async function exchangeAndSync(data: PlaidLinkResult): Promise<{
+async function exchangeAndSync(data: PlaidHostedLinkResult): Promise<PlaidSyncResult & {
   itemId: string;
-  added: number;
-  modified: number;
-  removed: number;
 }> {
   const client = getClient();
   const exchange = await client.itemPublicTokenExchange({ public_token: data.publicToken });
@@ -238,6 +162,31 @@ async function exchangeAndSync(data: PlaidLinkResult): Promise<{
   } catch (error) {
     throw new Error(`Institution connected, but initial sync failed: ${plaidError(error).message}`);
   }
+}
+
+async function exchangeAndSyncAll(results: PlaidHostedLinkResult[]): Promise<PlaidSyncResult & {
+  itemId: string;
+}> {
+  if (results.length === 0) throw new Error('Plaid completed without an institution result.');
+  const completed: Array<PlaidSyncResult & { itemId: string }> = [];
+  try {
+    for (const result of results) completed.push(await exchangeAndSync(result));
+  } catch (error) {
+    if (completed.length > 0) {
+      throw new Error(
+        `${completed.length} institution connection(s) completed, but another failed: ${plaidError(error).message}`
+      );
+    }
+    throw error;
+  }
+  return {
+    itemId: completed[0].itemId,
+    added: completed.reduce((sum, result) => sum + result.added, 0),
+    modified: completed.reduce((sum, result) => sum + result.modified, 0),
+    removed: completed.reduce((sum, result) => sum + result.removed, 0),
+    items: completed.reduce((sum, result) => sum + result.items, 0),
+    institutions: completed.flatMap(result => result.institutions)
+  };
 }
 
 export async function revokeAllPlaidItems(
@@ -548,13 +497,17 @@ function categoryName(transaction: Transaction): string {
 function upsertTransaction(itemId: string, transaction: Transaction): 'added' | 'modified' {
   const db = getDatabase();
   const account = query(
-    `SELECT a.name
+    `SELECT a.name, a.institution_name
      FROM plaid_accounts pa
      JOIN accounts a ON a.id = pa.local_account_id
      WHERE pa.plaid_account_id = ? AND pa.item_id = ?`,
     [transaction.account_id, itemId]
   );
   const accountLabel = account[0]?.name || '';
+  const bankName = formatPlaidTransactionBank(
+    account[0]?.institution_name || '',
+    accountLabel
+  );
   const category = categoryName(transaction);
   const existing = query(
     'SELECT id FROM transactions WHERE plaid_transaction_id = ?',
@@ -566,7 +519,7 @@ function upsertTransaction(itemId: string, transaction: Transaction): 'added' | 
       `UPDATE transactions
        SET date = ?, description = ?, original_description = ?, amount = ?,
            category = CASE WHEN category = '' THEN ? ELSE category END,
-           bank = 'Plaid', account_label = ?, custom_data = ?
+           bank = ?, account_label = ?, custom_data = ?
        WHERE plaid_transaction_id = ?`,
       [
         transaction.date,
@@ -574,6 +527,7 @@ function upsertTransaction(itemId: string, transaction: Transaction): 'added' | 
         transaction.merchant_name || transaction.name,
         transaction.amount,
         category,
+        bankName,
         accountLabel,
         JSON.stringify({ pending: transaction.pending }),
         transaction.transaction_id
@@ -586,7 +540,7 @@ function upsertTransaction(itemId: string, transaction: Transaction): 'added' | 
     `INSERT INTO transactions (
       id, date, description, original_description, amount, category, bank,
       account_label, import_batch, custom_data, plaid_transaction_id
-    ) VALUES (?, ?, ?, ?, ?, ?, 'Plaid', ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       generateId(),
       transaction.date,
@@ -594,6 +548,7 @@ function upsertTransaction(itemId: string, transaction: Transaction): 'added' | 
       transaction.merchant_name || transaction.name,
       transaction.amount,
       category,
+      bankName,
       accountLabel,
       `plaid:${itemId}`,
       JSON.stringify({ pending: transaction.pending }),
@@ -819,12 +774,25 @@ export function registerPlaidHandlers(): void {
   });
 
   ipcMain.handle('plaid:openLink', async () => {
+    if (activeLinkAttempt) throw new Error('A Plaid connection is already in progress.');
+    const attempt = new AbortController();
+    activeLinkAttempt = attempt;
     try {
-      const result = await openPlaidLink(await createLinkToken());
-      return result ? await exchangeAndSync(result) : null;
+      const session = await createHostedLinkSession();
+      await shell.openExternal(session.hostedLinkUrl);
+      const results = await waitForHostedLink(session.client, session.linkToken, attempt.signal);
+      return results ? await exchangeAndSyncAll(results) : null;
     } catch (error) {
       throw plaidError(error);
+    } finally {
+      if (activeLinkAttempt === attempt) activeLinkAttempt = null;
     }
+  });
+
+  ipcMain.handle('plaid:cancelLink', async () => {
+    if (!activeLinkAttempt) return false;
+    activeLinkAttempt.abort();
+    return true;
   });
 
   ipcMain.handle('plaid:sync', async (_event, itemId?: string) => {
@@ -851,6 +819,7 @@ export function registerPlaidHandlers(): void {
   });
 
   ipcMain.handle('plaid:clear', async () => {
+    if (activeLinkAttempt) throw new Error('Cancel the active Plaid connection before clearing Plaid.');
     const profile = getRuntimeProfile();
     const credentials = readPlaidSecrets();
     if (credentials.environment && credentials.environment !== profile.requiredPlaidEnvironment) {
@@ -864,6 +833,7 @@ export function registerPlaidHandlers(): void {
   });
 
   ipcMain.handle('plaid:clearLocal', () => {
+    if (activeLinkAttempt) throw new Error('Cancel the active Plaid connection before clearing Plaid.');
     getDatabase().run('DELETE FROM plaid_items');
     clearPlaidSecrets();
     clearPlaidScheduleState();

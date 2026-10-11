@@ -124,6 +124,7 @@ contextBridge.exposeInMainWorld('api', {
   getPlaidStatus: () => ipcRenderer.invoke('plaid:getStatus'),
   configurePlaid: (data: any) => ipcRenderer.invoke('plaid:configure', data),
   openPlaidLink: () => ipcRenderer.invoke('plaid:openLink'),
+  cancelPlaidLink: () => ipcRenderer.invoke('plaid:cancelLink'),
   syncPlaid: (itemId?: string) => ipcRenderer.invoke('plaid:sync', itemId),
   getPlaidSchedule: () => ipcRenderer.invoke('plaid:getSchedule'),
   setPlaidSchedule: (data: any) => ipcRenderer.invoke('plaid:setSchedule', data),

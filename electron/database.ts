@@ -462,6 +462,19 @@ export async function initDatabase(): Promise<Database> {
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_plaid_id ON transactions(plaid_transaction_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_plaid_accounts_item_id ON plaid_accounts(item_id)');
   db.run(`
+    UPDATE transactions
+    SET bank = COALESCE(NULLIF((
+          SELECT pi.institution_name
+          FROM plaid_items pi
+          WHERE import_batch = 'plaid:' || pi.item_id
+        ), ''), 'Plaid')
+        || CASE
+          WHEN TRIM(account_label) != '' THEN ' (' || TRIM(account_label) || ')'
+          ELSE ''
+        END
+    WHERE plaid_transaction_id IS NOT NULL
+  `);
+  db.run(`
     UPDATE accounts
     SET source = 'plaid',
         institution_name = COALESCE((

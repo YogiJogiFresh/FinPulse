@@ -259,10 +259,10 @@ const bankOptions = computed(() => {
   const opts = [{ label: 'All Banks', value: '' }]
   const seen = new Set<string>()
   for (const b of bankList.value) {
-    const label = b.accountLabel || b.bank
+    const label = b.bank
     if (!seen.has(label)) {
       seen.add(label)
-      opts.push({ label, value: b.accountLabel || b.bank })
+      opts.push({ label, value: b.bank })
     }
   }
   return opts
