@@ -1,6 +1,17 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { startPlaidLinkPage } = require('../dist/ipc/plaid-link-page.js');
+const { isPlaidOAuthPopup, startPlaidLinkPage } = require('../dist/ipc/plaid-link-page.js');
+
+test('allows only the named HTTPS Plaid OAuth popup', () => {
+  assert.equal(
+    isPlaidOAuthPopup('https://www.americanexpress.com/account/oauth/connect', 'plaid-link-oauth'),
+    true
+  );
+  assert.equal(isPlaidOAuthPopup('http://example.com', 'plaid-link-oauth'), false);
+  assert.equal(isPlaidOAuthPopup('javascript:alert(1)', 'plaid-link-oauth'), false);
+  assert.equal(isPlaidOAuthPopup('https://example.com', '_blank'), false);
+  assert.equal(isPlaidOAuthPopup('not a URL', 'plaid-link-oauth'), false);
+});
 
 test('serves Plaid Link from a private loopback origin', async (t) => {
   const token = 'link-production-test-token';

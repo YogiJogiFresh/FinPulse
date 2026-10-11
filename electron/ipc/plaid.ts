@@ -22,7 +22,7 @@ import {
   getRuntimeProfile,
   type PlaidEnvironment
 } from '../runtime-profile';
-import { startPlaidLinkPage } from './plaid-link-page';
+import { isPlaidOAuthPopup, startPlaidLinkPage } from './plaid-link-page';
 
 export interface PlaidSyncResult {
   added: number;
@@ -142,7 +142,35 @@ async function openPlaidLink(linkToken: string): Promise<PlaidLinkResult | null>
     linkWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
       callback(false);
     });
-    linkWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    linkWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
+      if (!isPlaidOAuthPopup(url, frameName)) return { action: 'deny' };
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          parent: linkWindow,
+          width: 800,
+          height: 600,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            webSecurity: true
+          }
+        }
+      };
+    });
+    linkWindow.webContents.on('did-create-window', (oauthWindow) => {
+      oauthWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      oauthWindow.webContents.on('will-navigate', (event, targetUrl) => {
+        try {
+          if (new URL(targetUrl).protocol === 'https:') return;
+        } catch {
+          // Block malformed navigation targets.
+        }
+        event.preventDefault();
+      });
+    });
     linkWindow.webContents.on('will-navigate', (event, targetUrl) => {
       if (!targetUrl.startsWith('finpulse-plaid://')) {
         event.preventDefault();

@@ -6,6 +6,15 @@ export interface PlaidLinkPage {
   close: () => void;
 }
 
+export function isPlaidOAuthPopup(url: string, frameName: string): boolean {
+  if (frameName !== 'plaid-link-oauth') return false;
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function createPlaidLinkHtml(linkToken: string): string {
   const token = JSON.stringify(linkToken);
   return `<!doctype html>
