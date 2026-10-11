@@ -48,8 +48,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico",
-      "publisherName": "FinPulse"
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
