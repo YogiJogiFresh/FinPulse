@@ -74,6 +74,8 @@ try {
 $installer = Join-Path $releaseDir "FinPulse Setup $newVersion.exe"
 $latestYml = Join-Path $releaseDir "latest.yml"
 $blockmap = Join-Path $releaseDir "FinPulse Setup $newVersion.exe.blockmap"
+$publishedInstaller = Join-Path $releaseDir "FinPulse-Setup-$newVersion.exe"
+$publishedBlockmap = Join-Path $releaseDir "FinPulse-Setup-$newVersion.exe.blockmap"
 
 if (-not (Test-Path $installer)) {
     Write-Host "  ERROR: Installer not found at $installer" -ForegroundColor Red
@@ -105,6 +107,11 @@ if ($isSigned) {
     Write-Warning "Installer is unsigned. Publishing a stable release with automatic-update metadata."
 }
 
+Copy-Item $installer $publishedInstaller -Force
+if (Test-Path $blockmap) {
+    Copy-Item $blockmap $publishedBlockmap -Force
+}
+
 # Git commit and push
 Write-Host "`n  Committing version bump..." -ForegroundColor Gray
 Push-Location $root
@@ -120,9 +127,9 @@ try {
 Write-Host "`n  Creating GitHub Release v$newVersion..." -ForegroundColor Yellow
 
 $releaseArgs = @("release", "create", "v$newVersion")
-$releaseArgs += $installer
+$releaseArgs += $publishedInstaller
 if (Test-Path $latestYml) { $releaseArgs += $latestYml }
-if (Test-Path $blockmap) { $releaseArgs += $blockmap }
+if (Test-Path $publishedBlockmap) { $releaseArgs += $publishedBlockmap }
 $releaseArgs += "--title"
 $releaseArgs += if ($isSigned) { "FinPulse v$newVersion" } else { "FinPulse v$newVersion - Unsigned" }
 $releaseArgs += "--generate-notes"
