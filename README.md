@@ -183,7 +183,8 @@ To share the app with others, just send them the **`FinPulse Setup 1.0.0.exe`** 
 
 ## How to Share
 
-Share FinPulse with friends and family — they'll get automatic update prompts whenever you release a new version.
+Share FinPulse with friends and family — they'll get automatic update prompts whenever you publish
+a stable version.
 
 ### First-time setup for your friend
 
@@ -202,14 +203,17 @@ When the app launches, it checks GitHub Releases for a newer version:
 
 ### Publishing a new version
 
-Windows releases must be code-signed. Configure electron-builder's `CSC_LINK` and
-`CSC_KEY_PASSWORD` environment variables. You may also set `FINPULSE_SIGNING_SUBJECT` to require an
-exact certificate subject during release verification.
-
 Run `npm run electron:release`, choose the semantic version bump, and let the release script build,
-verify the Authenticode signature, commit the version bump, and publish the installer and update
-metadata. The script stops before publishing if signing configuration is absent or the resulting
-installer signature is invalid.
+commit the version bump, and publish the installer.
+
+Every release includes `latest.yml` and the blockmap for automatic updates. When `CSC_LINK` and
+`CSC_KEY_PASSWORD` are configured, the script verifies the Authenticode signature before
+publishing. You may set `FINPULSE_SIGNING_SUBJECT` to require an exact certificate subject.
+
+Without signing configuration, the script publishes an unsigned stable release with automatic
+update metadata. Windows may show an unknown-publisher or SmartScreen warning. If signing was
+configured but did not produce a valid signature, publishing still stops rather than silently
+downgrading the release.
 
 ## Project Structure
 
